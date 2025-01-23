@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobset-operator
+  namespace: openshift-jobset-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: jobset-operator
+  template:
+    metadata:
+      labels:
+        name: jobset-operator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jobset-operator
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          image: quay.io/openshift/jobset-operator:4.19
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - jobset-operator
+          args:
+          - "operator"
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OPERATOR_NAME
+              value: "jobset-operator"
+          volumeMounts:
+          - name: tmp
+            mountPath: "/tmp"
+      serviceAccountName: jobset-operator
+      volumes:
+      - name: tmp
+        emptyDir: {}

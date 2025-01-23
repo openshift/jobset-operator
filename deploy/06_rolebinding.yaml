@@ -1,0 +1,12 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jobset-operator
+subjects:
+- kind: ServiceAccount
+  name: jobset-operator
+  namespace: openshift-jobset-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jobset-operator

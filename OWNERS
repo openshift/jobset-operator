@@ -1,0 +1,7 @@
+reviewers:
+  - atiratree
+  - ardaguclu
+approvers:
+  - atiratree
+  - ardaguclu
+component: "jobset-operator"
