@@ -36,12 +36,17 @@ regen-crd:
 	mv manifests/operator.openshift.io_jobsetoperators.yaml manifests/jobset-operator.crd.yaml
 	cp manifests/jobset-operator.crd.yaml deploy/00_jobset-operator.crd.yaml
 
-generate: regen-crd generate-clients
-.PHONY: generate
 
 generate-clients:
 	GO=GO111MODULE=on GOFLAGS=-mod=readonly hack/update-codegen.sh
 .PHONY: generate-clients
+
+generate-controller-manifests:
+	hack/update-jobset-controller-manifests.sh
+.PHONY: generate-controller-manifests
+
+generate: regen-crd generate-clients generate-controller-manifests
+.PHONY: generate
 
 clean:
 	$(RM) ./jobset-operator
