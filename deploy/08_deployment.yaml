@@ -24,7 +24,7 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
-          image: quay.io/openshift/jobset-operator:4.19
+          image: ${OPERATOR_IMAGE}
           ports:
           - containerPort: 60000
             name: metrics
@@ -34,12 +34,12 @@ spec:
           - "operator"
           imagePullPolicy: Always
           env:
-            - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: OPERATOR_NAME
               value: "jobset-operator"
+            - name: OPERATOR_IMAGE
+              value: ${OPERATOR_IMAGE}
+            - name: IMAGE
+              value: ${IMAGE}
           volumeMounts:
           - name: tmp
             mountPath: "/tmp"
