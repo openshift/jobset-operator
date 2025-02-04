@@ -3,7 +3,7 @@ package operator
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -13,9 +13,12 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/listers/core/v1"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
@@ -33,13 +36,21 @@ import (
 	"github.com/openshift/jobset-operator/pkg/operator/operatorclient"
 )
 
+const (
+	WebhookCertificateName        = "webhook-server-cert"
+	WebhookCertificateSecretName  = "jobset-serving-cert"
+	CertManagerInjectCaAnnotation = "cert-manager.io/inject-ca-from"
+)
+
 type TargetConfigReconciler struct {
 	targetImagePullSpec string
 	operatorNamespace   string
 
 	jobSetOperatorClient       *operatorclient.JobSetOperatorClient
 	kubeClient                 kubernetes.Interface
+	dynamicClient              dynamic.Interface
 	apiextensionsClient        *apiextensionsclient.Clientset
+	discoveryClient            discovery.DiscoveryInterface
 	eventRecorder              events.Recorder
 	kubeInformersForNamespaces v1helpers.KubeInformersForNamespaces
 	jobSetOperatorsLister      openshiftoperatorv1.JobSetOperatorLister
@@ -47,20 +58,15 @@ type TargetConfigReconciler struct {
 	resourceCache              resourceapply.ResourceCache
 }
 
-func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string,
-	operatorClientInformer operatorclientinformers.JobSetOperatorInformer,
-	kubeInformersForNamespaces v1helpers.KubeInformersForNamespaces,
-	jobSetOperatorClient *operatorclient.JobSetOperatorClient,
-	kubeClient kubernetes.Interface,
-	apiextensionsClient *apiextensionsclient.Clientset,
-	eventRecorder events.Recorder,
-) factory.Controller {
+func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string, operatorClientInformer operatorclientinformers.JobSetOperatorInformer, kubeInformersForNamespaces v1helpers.KubeInformersForNamespaces, jobSetOperatorClient *operatorclient.JobSetOperatorClient, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, apiextensionsClient *apiextensionsclient.Clientset, discoveryClient discovery.DiscoveryInterface, eventRecorder events.Recorder) factory.Controller {
 	t := &TargetConfigReconciler{
 		targetImagePullSpec:   targetImagePullSpec,
 		operatorNamespace:     operatorNamespace,
 		jobSetOperatorClient:  jobSetOperatorClient,
 		kubeClient:            kubeClient,
+		dynamicClient:         dynamicClient,
 		apiextensionsClient:   apiextensionsClient,
+		discoveryClient:       discoveryClient,
 		secretsLister:         kubeInformersForNamespaces.SecretLister(),
 		jobSetOperatorsLister: operatorClientInformer.Lister(),
 		eventRecorder:         eventRecorder,
@@ -80,11 +86,22 @@ func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string,
 		ToController("TargetConfigController", eventRecorder)
 }
 
-func (t TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	found, err := isResourceRegistered(t.discoveryClient, schema.GroupVersionKind{
+		Group:   "cert-manager.io",
+		Version: "v1",
+		Kind:    "Issuer",
+	})
+	if err != nil {
+		return fmt.Errorf("unable to check cert-manager is installed: %v", err)
+	}
+	if !found {
+		return fmt.Errorf("please make sure that cert-manager is installed on your cluster")
+	}
+
 	jobSetOperator, err := t.jobSetOperatorsLister.JobSetOperators(t.operatorNamespace).Get(operatorclient.OperatorConfigName)
 	if err != nil {
-		klog.ErrorS(err, "unable to get operator configuration", "namespace", t.operatorNamespace, "jobset", operatorclient.OperatorConfigName)
-		return err
+		return fmt.Errorf("unable to get operator configuration %s/%s: %v", t.operatorNamespace, operatorclient.OperatorConfigName, err)
 	}
 
 	ownerReference := metav1.OwnerReference{
@@ -94,11 +111,17 @@ func (t TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncCo
 		UID:        jobSetOperator.UID,
 	}
 
-	specAnnotations := map[string]string{
-		"jobsetoperators.operator.openshift.io/cluster": strconv.FormatInt(jobSetOperator.Generation, 10),
-	}
+	specAnnotations := make(map[string]string)
 
 	_, _, err = t.manageWebhookService(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+	_, _, err = t.manageCertManagerIssuer(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+	_, _, err = t.manageCertManagerCertificate(ctx, ownerReference)
 	if err != nil {
 		return err
 	}
@@ -139,22 +162,69 @@ func (t TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncCo
 }
 
 func (t *TargetConfigReconciler) manageWebhookService(ctx context.Context, ownerReference metav1.OwnerReference) (*corev1.Service, bool, error) {
-	webhookSecret := resourceread.ReadSecretV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_secret_jobset-webhook-server-cert.yaml"))
 	service := resourceread.ReadServiceV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_service_jobset-webhook-service.yaml"))
 	service.Namespace = t.operatorNamespace
 	service.OwnerReferences = []metav1.OwnerReference{ownerReference}
-	if service.Annotations == nil {
-		service.Annotations = map[string]string{}
-	}
-	service.Annotations["service.beta.openshift.io/serving-cert-secret-name"] = webhookSecret.Name
 
 	return resourceapply.ApplyService(ctx, t.kubeClient.CoreV1(), t.eventRecorder, service)
 }
 
+func (t *TargetConfigReconciler) manageCertManagerIssuer(ctx context.Context, ownerReference metav1.OwnerReference) (*unstructured.Unstructured, bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "issuers",
+	}
+	issuer, err := resourceread.ReadGenericWithUnstructured(bindata.MustAsset("assets/jobset-controller-generated/cert-manager.io_v1_issuer_jobset-selfsigned-issuer.yaml"))
+	if err != nil {
+		return nil, false, err
+	}
+	issuerAsUnstructured, ok := issuer.(*unstructured.Unstructured)
+	if !ok {
+		return nil, false, fmt.Errorf("issuer is not an Unstructured")
+	}
+	issuerAsUnstructured.SetNamespace(t.operatorNamespace)
+	ownerReferences := issuerAsUnstructured.GetOwnerReferences()
+	ownerReferences = append(ownerReferences, ownerReference)
+	issuerAsUnstructured.SetOwnerReferences(ownerReferences)
+
+	return resourceapply.ApplyUnstructuredResourceImproved(ctx, t.dynamicClient, t.eventRecorder, issuerAsUnstructured, t.resourceCache, gvr, nil, nil)
+}
+
+func (t *TargetConfigReconciler) manageCertManagerCertificate(ctx context.Context, ownerReference metav1.OwnerReference) (*unstructured.Unstructured, bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "certificates",
+	}
+	service := resourceread.ReadServiceV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_service_jobset-webhook-service.yaml"))
+	issuer, err := resourceread.ReadGenericWithUnstructured(bindata.MustAsset("assets/jobset-controller-generated/cert-manager.io_v1_certificate_jobset-serving-cert.yaml"))
+	if err != nil {
+		return nil, false, err
+	}
+	issuerAsUnstructured, ok := issuer.(*unstructured.Unstructured)
+	if !ok {
+		return nil, false, fmt.Errorf("issuer is not an Unstructured")
+	}
+	issuerAsUnstructured.SetNamespace(t.operatorNamespace)
+	ownerReferences := issuerAsUnstructured.GetOwnerReferences()
+	ownerReferences = append(ownerReferences, ownerReference)
+	issuerAsUnstructured.SetOwnerReferences(ownerReferences)
+	dnsNames, found, err := unstructured.NestedStringSlice(issuerAsUnstructured.Object, "spec", "dnsNames")
+	if !found || err != nil {
+		return nil, false, fmt.Errorf("%v: .spec.dnsNames not found: %v", issuerAsUnstructured.GetName(), err)
+	}
+	for i := range dnsNames {
+		dnsNames[i] = strings.Replace(dnsNames[i], "$(SERVICE_NAME)", service.Name, 1)
+		dnsNames[i] = strings.Replace(dnsNames[i], "$(SERVICE_NAMESPACE)", t.operatorNamespace, 1)
+	}
+	unstructured.SetNestedStringSlice(issuerAsUnstructured.Object, dnsNames, "spec", "dnsNames")
+	return resourceapply.ApplyUnstructuredResourceImproved(ctx, t.dynamicClient, t.eventRecorder, issuerAsUnstructured, t.resourceCache, gvr, nil, nil)
+}
+
 func (t *TargetConfigReconciler) manageWebhookCertSecret() (*corev1.Secret, bool, error) {
-	secret := resourceread.ReadSecretV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_secret_jobset-webhook-server-cert.yaml"))
-	secret, err := t.secretsLister.Secrets(t.operatorNamespace).Get(secret.Name)
-	// secret should be generated by the service-ca operator
+	secret, err := t.secretsLister.Secrets(t.operatorNamespace).Get(WebhookCertificateName)
+	// secret should be generated by the cert manager
 	if err != nil {
 		return nil, false, err
 	}
@@ -163,6 +233,7 @@ func (t *TargetConfigReconciler) manageWebhookCertSecret() (*corev1.Secret, bool
 	}
 	return secret, false, nil
 }
+
 func (t *TargetConfigReconciler) manageValidatingWebhook(ctx context.Context, ownerReference metav1.OwnerReference) (*admissionregistrationv1.ValidatingWebhookConfiguration, bool, error) {
 	validatingWebhook := resourceread.ReadValidatingWebhookConfigurationV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/admissionregistration.k8s.io_v1_validatingwebhookconfiguration_jobset-validating-webhook-configuration.yaml"))
 	for i := range validatingWebhook.Webhooks {
@@ -171,11 +242,10 @@ func (t *TargetConfigReconciler) manageValidatingWebhook(ctx context.Context, ow
 		}
 	}
 	validatingWebhook.OwnerReferences = []metav1.OwnerReference{ownerReference}
-	if validatingWebhook.Annotations == nil {
-		validatingWebhook.Annotations = map[string]string{}
+	err := injectCertManagerCA(validatingWebhook, t.operatorNamespace)
+	if err != nil {
+		return nil, false, err
 	}
-	validatingWebhook.Annotations["service.beta.openshift.io/inject-cabundle"] = "true"
-
 	return resourceapply.ApplyValidatingWebhookConfigurationImproved(ctx, t.kubeClient.AdmissionregistrationV1(), t.eventRecorder, validatingWebhook, t.resourceCache)
 }
 
@@ -187,11 +257,10 @@ func (t *TargetConfigReconciler) manageMutatingWebhook(ctx context.Context, owne
 		}
 	}
 	mutatingWebhook.OwnerReferences = []metav1.OwnerReference{ownerReference}
-	if mutatingWebhook.Annotations == nil {
-		mutatingWebhook.Annotations = map[string]string{}
+	err := injectCertManagerCA(mutatingWebhook, t.operatorNamespace)
+	if err != nil {
+		return nil, false, err
 	}
-	mutatingWebhook.Annotations["service.beta.openshift.io/inject-cabundle"] = "true"
-
 	return resourceapply.ApplyMutatingWebhookConfigurationImproved(ctx, t.kubeClient.AdmissionregistrationV1(), t.eventRecorder, mutatingWebhook, t.resourceCache)
 }
 
@@ -201,10 +270,10 @@ func (t *TargetConfigReconciler) manageCRD(ctx context.Context, ownerReference m
 		crd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = t.operatorNamespace
 	}
 	crd.OwnerReferences = []metav1.OwnerReference{ownerReference}
-	if crd.Annotations == nil {
-		crd.Annotations = map[string]string{}
+	err := injectCertManagerCA(crd, t.operatorNamespace)
+	if err != nil {
+		return nil, false, err
 	}
-	crd.Annotations["service.beta.openshift.io/inject-cabundle"] = "true"
 
 	currentCRD, err := t.apiextensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, crd.Name, metav1.GetOptions{})
 	switch {
@@ -275,4 +344,33 @@ func (t *TargetConfigReconciler) manageDeployment(ctx context.Context, jobSetOpe
 		t.eventRecorder,
 		required,
 		resourcemerge.ExpectedDeploymentGeneration(required, jobSetOperator.Status.Generations))
+}
+
+func isResourceRegistered(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (bool, error) {
+	apiResourceLists, err := discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	for _, apiResource := range apiResourceLists.APIResources {
+		if apiResource.Kind == gvk.Kind {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func injectCertManagerCA(obj metav1.Object, namespace string) error {
+	annotations := obj.GetAnnotations()
+	if _, ok := annotations[CertManagerInjectCaAnnotation]; !ok {
+		return fmt.Errorf("%s is missing %s annotation", obj.GetName(), CertManagerInjectCaAnnotation)
+	}
+	injectAnnotation := annotations[CertManagerInjectCaAnnotation]
+	injectAnnotation = strings.Replace(injectAnnotation, "$(CERTIFICATE_NAMESPACE)", namespace, 1)
+	injectAnnotation = strings.Replace(injectAnnotation, "$(CERTIFICATE_NAME)", WebhookCertificateSecretName, 1)
+	annotations[CertManagerInjectCaAnnotation] = injectAnnotation
+	obj.SetAnnotations(annotations)
+	return nil
 }

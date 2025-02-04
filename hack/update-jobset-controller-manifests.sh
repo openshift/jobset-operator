@@ -43,7 +43,10 @@ pushd "${JOBSET_CONTROLLER_DIR}"
     # backup kustomization.yaml and edit the default values
     pushd "${JOBSET_CONTROLLER_DIR}/config/default"
       cp "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml" "${SCRIPT_ROOT}/_tmp/jobset_kustomization.yaml.bak"
+      sed -i 's!#- webhookcainjection_patch.yaml!- webhookcainjection_patch.yaml!' "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml"
       "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit set namespace ${JOBSET_NAMESPACE}
+      "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit remove resource "../components/internalcert"
+      "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add resource "../components/certmanager"
     popd
     pushd "${JOBSET_CONTROLLER_DIR}/config/components/manager"
       cp "${JOBSET_CONTROLLER_DIR}//config/components/manager/kustomization.yaml" "${SCRIPT_ROOT}/_tmp/jobset_components_manager_kustomization.yaml.bak"

@@ -8,6 +8,8 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
@@ -40,7 +42,15 @@ func RunOperator(ctx context.Context, cc *controllercmd.ControllerContext) error
 	if err != nil {
 		return err
 	}
+	dynamicClient, err := dynamic.NewForConfig(cc.ProtoKubeConfig)
+	if err != nil {
+		return err
+	}
 	apiextensionsClient, err := apiextensionsclient.NewForConfig(cc.KubeConfig)
+	if err != nil {
+		return err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cc.KubeConfig)
 	if err != nil {
 		return err
 	}
@@ -137,7 +147,9 @@ func RunOperator(ctx context.Context, cc *controllercmd.ControllerContext) error
 		kubeInformersForNamespaces,
 		jobSetOperatorClient,
 		kubeClient,
+		dynamicClient,
 		apiextensionsClient,
+		discoveryClient,
 		cc.EventRecorder,
 	)
 

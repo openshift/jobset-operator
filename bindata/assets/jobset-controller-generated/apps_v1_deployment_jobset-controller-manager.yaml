@@ -76,4 +76,4 @@ spec:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: jobset-webhook-server-cert
+          secretName: webhook-server-cert
