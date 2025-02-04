@@ -52,7 +52,12 @@ verify-codegen:
 	hack/verify-codegen.sh
 .PHONY: verify-codegen
 
+verify-controller-manifests:
+	hack/verify-jobset-controller-manifests.sh
+.PHONY: verify-controller-manifests
+
 clean:
 	$(RM) ./jobset-operator
 	$(RM) -r ./_tmp
+	$(RM) -r ./_output
 .PHONY: clean
