@@ -48,6 +48,10 @@ generate-controller-manifests:
 generate: regen-crd generate-clients generate-controller-manifests
 .PHONY: generate
 
+verify-codegen:
+	hack/verify-codegen.sh
+.PHONY: verify-codegen
+
 clean:
 	$(RM) ./jobset-operator
 	$(RM) -r ./_tmp

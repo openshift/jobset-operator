@@ -11,7 +11,7 @@ The JobSet Operator provides the ability to deploy a
    ```sh
    export QUAY_USER=${your_quay_user_id}
    export IMAGE_TAG=${your_image_tag}
-   podman build -t quay.io/${QUAY_USER}/jobset-operator:${IMAGE_TAG} .
+   podman build -f Dockerfile.ci -t quay.io/${QUAY_USER}/jobset-operator:${IMAGE_TAG} .
    podman login quay.io -u ${QUAY_USER}
    podman push quay.io/${QUAY_USER}/jobset-operator:${IMAGE_TAG}
    ```
