@@ -51,10 +51,8 @@ rules:
       - rolebindings
     verbs:
       - create
-      - bind
       - delete
       - deletecollection
-      - escalate
       - get
       - list
       - patch

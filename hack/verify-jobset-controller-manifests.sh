@@ -31,7 +31,18 @@ git clone --branch "$JOBSET_BRANCH_OR_TAG" "$JOBSET_REPO_URL" "$JOBSET_CONTROLLE
 
 rm -rf "${TMP_DIR}"
 
+pushd "${SCRIPT_ROOT}"
+
 if [ -n "$(git status --porcelain -- bindata/assets/jobset-controller-generated/)" ];then
+    popd
     echo "assets do not match with the github.com/openshift/kubernetes-sigs-jobset $JOBSET_BRANCH_OR_TAG. Please run update-jobset-controller-manifests.sh script" >&2
     exit 2
 fi
+
+if [ -n "$(git status --porcelain -- deploy/)" ];then
+    popd
+    echo "deploy assets do not match with the github.com/openshift/kubernetes-sigs-jobset $JOBSET_BRANCH_OR_TAG. Please run update-jobset-controller-manifests.sh script" >&2
+    exit 2
+fi
+
+popd

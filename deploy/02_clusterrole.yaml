@@ -73,10 +73,8 @@ rules:
       - clusterrolebindings
     verbs:
       - create
-      - bind
       - delete
       - deletecollection
-      - escalate
       - get
       - list
       - patch

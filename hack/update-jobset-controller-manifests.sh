@@ -18,10 +18,17 @@ set -o pipefail
 
 SCRIPT_ROOT="$(realpath "$(dirname "$(readlink -f "$0")")"/..)"
 JOBSET_ASSETS_DIR="${SCRIPT_ROOT}/bindata/assets/jobset-controller-generated"
+JOBSET_DEPLOY_DIR="${SCRIPT_ROOT}/deploy"
 JOBSET_CONTROLLER_DIR="${JOBSET_CONTROLLER_DIR:-${HOME}/go/src/sigs.k8s.io/jobset}"
 
 JOBSET_BRANCH_OR_TAG="${JOBSET_BRANCH_OR_TAG:-"$(cat "${SCRIPT_ROOT}/operand-git-ref")"}"
 JOBSET_NAMESPACE="${JOBSET_NAMESPACE:-openshift-jobset-operator}"
+
+# Ensure yq is installed
+if ! command -v yq &> /dev/null; then
+    echo "yq is not installed. Installing yq..."
+    go install -mod=readonly github.com/mikefarah/yq/v4@v4.45.1
+fi
 
 if [ ! -d "${JOBSET_CONTROLLER_DIR}" ]; then
   echo "${JOBSET_CONTROLLER_DIR} is not a valid directory" >&2
@@ -38,7 +45,7 @@ pushd "${JOBSET_CONTROLLER_DIR}"
       exit 2
   fi
   # ensure kustomize exists or download it
-  make kustomize
+  GOFLAGS='-mod=readonly' make kustomize
 
   ORIGINAL_GIT_BRANCH_OR_COMMIT="$(git branch --show-current)"
   if [[ -z "${ORIGINAL_GIT_BRANCH_OR_COMMIT}" ]]; then
@@ -67,8 +74,35 @@ popd
 
 # post processing
 pushd "${JOBSET_ASSETS_DIR}"
-# we don't need the namespace object
-rm ./v1_namespace_openshift-jobset-operator.yaml
-# we supply our own config
-rm ./v1_configmap_jobset-manager-config.yaml
+  # we don't need the namespace object
+  rm ./v1_namespace_openshift-jobset-operator.yaml
+  # we supply our own config
+  rm ./v1_configmap_jobset-manager-config.yaml
+
+  # mirror operand RBAC to the operator
+  rm -f "${JOBSET_DEPLOY_DIR}/06_operand_clusterrole.yaml"
+  rm -f "${JOBSET_DEPLOY_DIR}/08_operand_role.yaml"
+
+cat >"${JOBSET_DEPLOY_DIR}/06_operand_clusterrole.yaml" <<EOL
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jobset-operand
+rules:
+EOL
+cat >"${JOBSET_DEPLOY_DIR}/08_operand_role.yaml" <<EOL
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jobset-operand
+  namespace: openshift-jobset-operator
+rules:
+EOL
+
+  for clusterRole in rbac.authorization.k8s.io_v1_clusterrole_*.yaml; do
+    yq -oyaml ".rules" "$clusterRole" >> "${JOBSET_DEPLOY_DIR}/06_operand_clusterrole.yaml"
+  done
+  for role in rbac.authorization.k8s.io_v1_role_*.yaml; do
+    yq -oyaml ".rules" "$role" >> "${JOBSET_DEPLOY_DIR}/08_operand_role.yaml"
+  done
 popd
