@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobset-operator
+  namespace: openshift-jobset-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: jobset-operator
+  template:
+    metadata:
+      labels:
+        name: jobset-operator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jobset-operator
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          image: ${OPERATOR_IMAGE}
+          ports:
+          - containerPort: 60000
+            name: metrics
+          command:
+          - jobset-operator
+          args:
+          - "operator"
+          imagePullPolicy: Always
+          env:
+            - name: OPERATOR_NAME
+              value: "jobset-operator"
+            - name: OPERATOR_IMAGE
+              value: ${OPERATOR_IMAGE}
+            - name: IMAGE
+              value: ${IMAGE}
+          volumeMounts:
+          - name: tmp
+            mountPath: "/tmp"
+      serviceAccountName: jobset-operator
+      volumes:
+      - name: tmp
+        emptyDir: {}
