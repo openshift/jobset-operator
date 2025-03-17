@@ -36,10 +36,9 @@ type JobSetOperatorApplyConfiguration struct {
 
 // JobSetOperator constructs a declarative configuration of the JobSetOperator type for use with
 // apply.
-func JobSetOperator(name, namespace string) *JobSetOperatorApplyConfiguration {
+func JobSetOperator(name string) *JobSetOperatorApplyConfiguration {
 	b := &JobSetOperatorApplyConfiguration{}
 	b.WithName(name)
-	b.WithNamespace(namespace)
 	b.WithKind("JobSetOperator")
 	b.WithAPIVersion("operator.openshift.io/v1")
 	return b
@@ -74,7 +73,6 @@ func extractJobSetOperator(jobSetOperator *openshiftoperatorv1.JobSetOperator, f
 		return nil, err
 	}
 	b.WithName(jobSetOperator.Name)
-	b.WithNamespace(jobSetOperator.Namespace)
 
 	b.WithKind("JobSetOperator")
 	b.WithAPIVersion("operator.openshift.io/v1")

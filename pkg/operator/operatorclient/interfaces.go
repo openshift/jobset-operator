@@ -29,11 +29,10 @@ const OperandName = "jobset-controller-manager"
 var _ v1helpers.OperatorClient = &JobSetOperatorClient{}
 
 type JobSetOperatorClient struct {
-	Ctx               context.Context
-	OperatorNamespace string
-	SharedInformer    cache.SharedIndexInformer
-	Lister            openshiftoperatorv1.JobSetOperatorLister
-	OperatorClient    operatorconfigclientv1.OpenShiftOperatorV1Interface
+	Ctx            context.Context
+	SharedInformer cache.SharedIndexInformer
+	Lister         openshiftoperatorv1.JobSetOperatorLister
+	OperatorClient operatorconfigclientv1.OpenShiftOperatorV1Interface
 }
 
 func (j JobSetOperatorClient) Informer() cache.SharedIndexInformer {
@@ -44,7 +43,7 @@ func (j JobSetOperatorClient) GetOperatorState() (spec *operatorv1.OperatorSpec,
 	if !j.SharedInformer.HasSynced() {
 		return j.GetOperatorStateWithQuorum(j.Ctx)
 	}
-	instance, err := j.Lister.JobSetOperators(j.OperatorNamespace).Get(OperatorConfigName)
+	instance, err := j.Lister.Get(OperatorConfigName)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -52,7 +51,7 @@ func (j JobSetOperatorClient) GetOperatorState() (spec *operatorv1.OperatorSpec,
 }
 
 func (j JobSetOperatorClient) GetOperatorStateWithQuorum(ctx context.Context) (*operatorv1.OperatorSpec, *operatorv1.OperatorStatus, string, error) {
-	instance, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(ctx, OperatorConfigName, metav1.GetOptions{})
+	instance, err := j.OperatorClient.JobSetOperators().Get(ctx, OperatorConfigName, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -60,13 +59,13 @@ func (j JobSetOperatorClient) GetOperatorStateWithQuorum(ctx context.Context) (*
 }
 
 func (j *JobSetOperatorClient) UpdateOperatorSpec(ctx context.Context, resourceVersion string, spec *operatorv1.OperatorSpec) (out *operatorv1.OperatorSpec, newResourceVersion string, err error) {
-	original, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(ctx, OperatorConfigName, metav1.GetOptions{ResourceVersion: resourceVersion})
+	original, err := j.OperatorClient.JobSetOperators().Get(ctx, OperatorConfigName, metav1.GetOptions{ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, "", err
 	}
 	original.Spec.OperatorSpec = *spec
 
-	ret, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Update(ctx, original, v1.UpdateOptions{})
+	ret, err := j.OperatorClient.JobSetOperators().Update(ctx, original, v1.UpdateOptions{})
 	if err != nil {
 		return nil, "", err
 	}
@@ -75,13 +74,13 @@ func (j *JobSetOperatorClient) UpdateOperatorSpec(ctx context.Context, resourceV
 }
 
 func (j *JobSetOperatorClient) UpdateOperatorStatus(ctx context.Context, resourceVersion string, status *operatorv1.OperatorStatus) (out *operatorv1.OperatorStatus, err error) {
-	original, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(ctx, OperatorConfigName, metav1.GetOptions{ResourceVersion: resourceVersion})
+	original, err := j.OperatorClient.JobSetOperators().Get(ctx, OperatorConfigName, metav1.GetOptions{ResourceVersion: resourceVersion})
 	if err != nil {
 		return nil, err
 	}
 	original.Status.OperatorStatus = *status
 
-	ret, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).UpdateStatus(ctx, original, v1.UpdateOptions{})
+	ret, err := j.OperatorClient.JobSetOperators().UpdateStatus(ctx, original, v1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -91,12 +90,12 @@ func (j *JobSetOperatorClient) UpdateOperatorStatus(ctx context.Context, resourc
 func (j *JobSetOperatorClient) GetObjectMeta() (meta *metav1.ObjectMeta, err error) {
 	var instance *apisopenshiftoperatorv1.JobSetOperator
 	if j.SharedInformer.HasSynced() {
-		instance, err = j.Lister.JobSetOperators(j.OperatorNamespace).Get(OperatorConfigName)
+		instance, err = j.Lister.Get(OperatorConfigName)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		instance, err = j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(j.Ctx, OperatorConfigName, metav1.GetOptions{})
+		instance, err = j.OperatorClient.JobSetOperators().Get(j.Ctx, OperatorConfigName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -112,10 +111,10 @@ func (j *JobSetOperatorClient) ApplyOperatorSpec(ctx context.Context, fieldManag
 	desiredSpec := &jobsetoperatorapplyconfiguration.JobSetOperatorSpecApplyConfiguration{
 		OperatorSpecApplyConfiguration: *desiredConfiguration,
 	}
-	desired := jobsetoperatorapplyconfiguration.JobSetOperator(OperatorConfigName, j.OperatorNamespace)
+	desired := jobsetoperatorapplyconfiguration.JobSetOperator(OperatorConfigName)
 	desired.WithSpec(desiredSpec)
 
-	instance, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(ctx, OperatorConfigName, metav1.GetOptions{})
+	instance, err := j.OperatorClient.JobSetOperators().Get(ctx, OperatorConfigName, metav1.GetOptions{})
 	switch {
 	case apierrors.IsNotFound(err):
 	// do nothing and proceed with the apply
@@ -131,7 +130,7 @@ func (j *JobSetOperatorClient) ApplyOperatorSpec(ctx context.Context, fieldManag
 		}
 	}
 
-	_, err = j.OperatorClient.JobSetOperators(j.OperatorNamespace).Apply(ctx, desired, v1.ApplyOptions{
+	_, err = j.OperatorClient.JobSetOperators().Apply(ctx, desired, v1.ApplyOptions{
 		Force:        true,
 		FieldManager: fieldManager,
 	})
@@ -150,10 +149,10 @@ func (j *JobSetOperatorClient) ApplyOperatorStatus(ctx context.Context, fieldMan
 	desiredStatus := &jobsetoperatorapplyconfiguration.JobSetOperatorStatusApplyConfiguration{
 		OperatorStatusApplyConfiguration: *desiredConfiguration,
 	}
-	desired := jobsetoperatorapplyconfiguration.JobSetOperator(OperatorConfigName, j.OperatorNamespace)
+	desired := jobsetoperatorapplyconfiguration.JobSetOperator(OperatorConfigName)
 	desired.WithStatus(desiredStatus)
 
-	instance, err := j.OperatorClient.JobSetOperators(j.OperatorNamespace).Get(ctx, OperatorConfigName, metav1.GetOptions{})
+	instance, err := j.OperatorClient.JobSetOperators().Get(ctx, OperatorConfigName, metav1.GetOptions{})
 	switch {
 	case apierrors.IsNotFound(err):
 		// do nothing and proceed with the apply
@@ -175,7 +174,7 @@ func (j *JobSetOperatorClient) ApplyOperatorStatus(ctx context.Context, fieldMan
 		}
 	}
 
-	_, err = j.OperatorClient.JobSetOperators(j.OperatorNamespace).ApplyStatus(ctx, desired, v1.ApplyOptions{
+	_, err = j.OperatorClient.JobSetOperators().ApplyStatus(ctx, desired, v1.ApplyOptions{
 		Force:        true,
 		FieldManager: fieldManager,
 	})
@@ -191,6 +190,6 @@ func (j JobSetOperatorClient) PatchOperatorStatus(ctx context.Context, jsonPatch
 	if err != nil {
 		return err
 	}
-	_, err = j.OperatorClient.JobSetOperators(j.OperatorNamespace).Patch(ctx, OperatorConfigName, types.JSONPatchType, jsonPatchBytes, metav1.PatchOptions{}, "/status")
+	_, err = j.OperatorClient.JobSetOperators().Patch(ctx, OperatorConfigName, types.JSONPatchType, jsonPatchBytes, metav1.PatchOptions{}, "/status")
 	return err
 }

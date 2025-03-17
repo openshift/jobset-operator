@@ -31,7 +31,7 @@ import (
 // JobSetOperatorsGetter has a method to return a JobSetOperatorInterface.
 // A group's client should implement this interface.
 type JobSetOperatorsGetter interface {
-	JobSetOperators(namespace string) JobSetOperatorInterface
+	JobSetOperators() JobSetOperatorInterface
 }
 
 // JobSetOperatorInterface has methods to work with JobSetOperator resources.
@@ -58,13 +58,13 @@ type jobSetOperators struct {
 }
 
 // newJobSetOperators returns a JobSetOperators
-func newJobSetOperators(c *OpenShiftOperatorV1Client, namespace string) *jobSetOperators {
+func newJobSetOperators(c *OpenShiftOperatorV1Client) *jobSetOperators {
 	return &jobSetOperators{
 		gentype.NewClientWithListAndApply[*openshiftoperatorv1.JobSetOperator, *openshiftoperatorv1.JobSetOperatorList, *applyconfigurationopenshiftoperatorv1.JobSetOperatorApplyConfiguration](
 			"jobsetoperators",
 			c.RESTClient(),
 			scheme.ParameterCodec,
-			namespace,
+			"",
 			func() *openshiftoperatorv1.JobSetOperator { return &openshiftoperatorv1.JobSetOperator{} },
 			func() *openshiftoperatorv1.JobSetOperatorList { return &openshiftoperatorv1.JobSetOperatorList{} },
 		),

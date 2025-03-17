@@ -29,8 +29,9 @@ type JobSetOperatorLister interface {
 	// List lists all JobSetOperators in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*openshiftoperatorv1.JobSetOperator, err error)
-	// JobSetOperators returns an object that can list and get JobSetOperators.
-	JobSetOperators(namespace string) JobSetOperatorNamespaceLister
+	// Get retrieves the JobSetOperator from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*openshiftoperatorv1.JobSetOperator, error)
 	JobSetOperatorListerExpansion
 }
 
@@ -42,27 +43,4 @@ type jobSetOperatorLister struct {
 // NewJobSetOperatorLister returns a new JobSetOperatorLister.
 func NewJobSetOperatorLister(indexer cache.Indexer) JobSetOperatorLister {
 	return &jobSetOperatorLister{listers.New[*openshiftoperatorv1.JobSetOperator](indexer, openshiftoperatorv1.Resource("jobsetoperator"))}
-}
-
-// JobSetOperators returns an object that can list and get JobSetOperators.
-func (s *jobSetOperatorLister) JobSetOperators(namespace string) JobSetOperatorNamespaceLister {
-	return jobSetOperatorNamespaceLister{listers.NewNamespaced[*openshiftoperatorv1.JobSetOperator](s.ResourceIndexer, namespace)}
-}
-
-// JobSetOperatorNamespaceLister helps list and get JobSetOperators.
-// All objects returned here must be treated as read-only.
-type JobSetOperatorNamespaceLister interface {
-	// List lists all JobSetOperators in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*openshiftoperatorv1.JobSetOperator, err error)
-	// Get retrieves the JobSetOperator from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*openshiftoperatorv1.JobSetOperator, error)
-	JobSetOperatorNamespaceListerExpansion
-}
-
-// jobSetOperatorNamespaceLister implements the JobSetOperatorNamespaceLister
-// interface.
-type jobSetOperatorNamespaceLister struct {
-	listers.ResourceIndexer[*openshiftoperatorv1.JobSetOperator]
 }

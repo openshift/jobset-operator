@@ -29,11 +29,11 @@ type fakeJobSetOperators struct {
 	Fake *FakeOpenShiftOperatorV1
 }
 
-func newFakeJobSetOperators(fake *FakeOpenShiftOperatorV1, namespace string) typedopenshiftoperatorv1.JobSetOperatorInterface {
+func newFakeJobSetOperators(fake *FakeOpenShiftOperatorV1) typedopenshiftoperatorv1.JobSetOperatorInterface {
 	return &fakeJobSetOperators{
 		gentype.NewFakeClientWithListAndApply[*v1.JobSetOperator, *v1.JobSetOperatorList, *openshiftoperatorv1.JobSetOperatorApplyConfiguration](
 			fake.Fake,
-			namespace,
+			"",
 			v1.SchemeGroupVersion.WithResource("jobsetoperators"),
 			v1.SchemeGroupVersion.WithKind("JobSetOperator"),
 			func() *v1.JobSetOperator { return &v1.JobSetOperator{} },
