@@ -45,7 +45,7 @@ generate-controller-manifests:
 	hack/update-jobset-controller-manifests.sh
 .PHONY: generate-controller-manifests
 
-generate: regen-crd generate-clients generate-controller-manifests
+generate: generate-clients regen-crd generate-controller-manifests
 .PHONY: generate
 
 verify-codegen:

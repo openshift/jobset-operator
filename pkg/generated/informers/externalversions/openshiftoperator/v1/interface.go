@@ -39,5 +39,5 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // JobSetOperators returns a JobSetOperatorInformer.
 func (v *version) JobSetOperators() JobSetOperatorInformer {
-	return &jobSetOperatorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &jobSetOperatorInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

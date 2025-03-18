@@ -66,11 +66,10 @@ func RunOperator(ctx context.Context, cc *controllercmd.ControllerContext) error
 	}
 	operatorConfigInformers := operatorclientinformers.NewSharedInformerFactory(operatorConfigClient, 10*time.Minute)
 	jobSetOperatorClient := &operatorclient.JobSetOperatorClient{
-		Ctx:               ctx,
-		OperatorNamespace: namespace,
-		SharedInformer:    operatorConfigInformers.OpenShiftOperator().V1().JobSetOperators().Informer(),
-		Lister:            operatorConfigInformers.OpenShiftOperator().V1().JobSetOperators().Lister(),
-		OperatorClient:    operatorConfigClient.OpenShiftOperatorV1(),
+		Ctx:            ctx,
+		SharedInformer: operatorConfigInformers.OpenShiftOperator().V1().JobSetOperators().Informer(),
+		Lister:         operatorConfigInformers.OpenShiftOperator().V1().JobSetOperators().Lister(),
+		OperatorClient: operatorConfigClient.OpenShiftOperatorV1(),
 	}
 
 	staticResourceController := staticresourcecontroller.NewStaticResourceController(

@@ -26,8 +26,8 @@ type FakeOpenShiftOperatorV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeOpenShiftOperatorV1) JobSetOperators(namespace string) v1.JobSetOperatorInterface {
-	return newFakeJobSetOperators(c, namespace)
+func (c *FakeOpenShiftOperatorV1) JobSetOperators() v1.JobSetOperatorInterface {
+	return newFakeJobSetOperators(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

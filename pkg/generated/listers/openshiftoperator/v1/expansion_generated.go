@@ -19,7 +19,3 @@ package v1
 // JobSetOperatorListerExpansion allows custom methods to be added to
 // JobSetOperatorLister.
 type JobSetOperatorListerExpansion interface{}
-
-// JobSetOperatorNamespaceListerExpansion allows custom methods to be added to
-// JobSetOperatorNamespaceLister.
-type JobSetOperatorNamespaceListerExpansion interface{}

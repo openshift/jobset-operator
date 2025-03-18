@@ -34,8 +34,8 @@ type OpenShiftOperatorV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *OpenShiftOperatorV1Client) JobSetOperators(namespace string) JobSetOperatorInterface {
-	return newJobSetOperators(c, namespace)
+func (c *OpenShiftOperatorV1Client) JobSetOperators() JobSetOperatorInterface {
+	return newJobSetOperators(c)
 }
 
 // NewForConfig creates a new OpenShiftOperatorV1Client for the given config.

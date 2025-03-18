@@ -10,8 +10,10 @@ import (
 // JobSetOperator is the Schema for the jobsetoperator API
 // +k8s:openapi-gen=true
 // +genclient
+// +genclient:nonNamespaced
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 type JobSetOperator struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
