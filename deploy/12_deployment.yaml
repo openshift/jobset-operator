@@ -38,8 +38,8 @@ spec:
               value: "jobset-operator"
             - name: OPERATOR_IMAGE
               value: ${OPERATOR_IMAGE}
-            - name: IMAGE
-              value: ${IMAGE}
+            - name: OPERAND_IMAGE
+              value: ${OPERAND_IMAGE}
           volumeMounts:
           - name: tmp
             mountPath: "/tmp"
