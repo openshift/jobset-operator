@@ -1,6 +1,9 @@
 all: build
 .PHONY: all
 
+# Use go.mod go version as a single source of truth of Ginkgo version.
+GINKGO_VERSION ?= $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
+
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	golang.mk \
@@ -23,10 +26,17 @@ $(call build-image,ocp-jobset-operator,$(IMAGE_REGISTRY)/ocp/4.19:jobset-operato
 
 $(call verify-golang-versions,Dockerfile)
 
-test-e2e: GO_TEST_PACKAGES :=./test/e2e
-# the e2e imports pkg/cmd which has a data race in the transport library with the library-go init code
-test-e2e: GO_TEST_FLAGS :=-v
-test-e2e: test-unit
+GINKGO = $(shell pwd)/_output/tools/bin/ginkgo
+.PHONY: ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	test -s $(shell pwd)/_output/tools/bin/ginkgo || GOFLAGS=-mod=readonly GOBIN=$(shell pwd)/_output/tools/bin go install github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
+
+test-e2e: ginkgo
+	RUN_OPERATOR_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
+.PHONY: test-e2e
+
+test-e2e-operand: ginkgo
+	RUN_OPERAND_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
 .PHONY: test-e2e
 
 regen-crd:
