@@ -19,9 +19,7 @@ set -o pipefail
 SCRIPT_ROOT="$(realpath "$(dirname "$(readlink -f "$0")")"/..)"
 TMP_DIR=$(mktemp -d)
 
-#JOBSET_REPO_URL="https://github.com/openshift/kubernetes-sigs-jobset.git"
-#USE DOWNSTREAM WHEN IT IS SYNCED
-JOBSET_REPO_URL="https://github.com/kubernetes-sigs/jobset.git"
+JOBSET_REPO_URL="https://github.com/openshift/kubernetes-sigs-jobset.git"
 export JOBSET_BRANCH_OR_TAG="${JOBSET_BRANCH_OR_TAG:-$(cat "${SCRIPT_ROOT}/operand-git-ref")}"
 export JOBSET_CONTROLLER_DIR="${JOBSET_CONTROLLER_DIR:-${TMP_DIR}/go/src/sigs.k8s.io/jobset}"
 
