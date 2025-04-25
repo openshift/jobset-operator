@@ -38,6 +38,9 @@ spec:
           periodSeconds: 20
         name: manager
         ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
         - containerPort: 9443
           name: webhook-server
           protocol: TCP
@@ -58,7 +61,11 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
         volumeMounts:
+        - mountPath: /tmp/k8s-metrics-server/serving-certs
+          name: metrics-certs
+          readOnly: true
         - mountPath: /controller_manager_config.yaml
           name: manager-config
           subPath: controller_manager_config.yaml
@@ -70,6 +77,10 @@ spec:
       serviceAccountName: jobset-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
+      - name: metrics-certs
+        secret:
+          defaultMode: 420
+          secretName: metrics-server-cert
       - configMap:
           name: jobset-manager-config
         name: manager-config

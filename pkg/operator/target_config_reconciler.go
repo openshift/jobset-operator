@@ -9,6 +9,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -37,9 +38,13 @@ import (
 )
 
 const (
-	WebhookCertificateName        = "webhook-server-cert"
-	WebhookCertificateSecretName  = "jobset-serving-cert"
+	WebhookCertificateSecretName  = "webhook-server-cert"
+	MetricsCertificateSecretName  = "metrics-server-cert"
+	WebhookCertificateName        = "jobset-serving-cert"
 	CertManagerInjectCaAnnotation = "cert-manager.io/inject-ca-from"
+	OpenshiftMonitoringNamespace  = "openshift-monitoring"
+	// PrometheusClientCertsPath is a mounted secret in the openshift-monitoring prometheus
+	PrometheusClientCertsPath = "/etc/prometheus/secrets/metrics-client-certs/"
 )
 
 type TargetConfigReconciler struct {
@@ -125,11 +130,20 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 	if err != nil {
 		return err
 	}
-	webhookSecret, _, err := t.manageWebhookCertSecret()
+	_, _, err = t.manageMetricsCertificate(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+	webhookSecret, _, err := t.checkSecretReady(WebhookCertificateSecretName)
 	if err != nil {
 		return err
 	}
 	specAnnotations["secrets/"+webhookSecret.Name] = webhookSecret.ResourceVersion
+	metricsSecret, _, err := t.checkSecretReady(MetricsCertificateSecretName)
+	if err != nil {
+		return err
+	}
+	specAnnotations["secrets/"+metricsSecret.Name] = metricsSecret.ResourceVersion
 
 	_, _, err = t.manageValidatingWebhook(ctx, ownerReference)
 	if err != nil {
@@ -143,6 +157,19 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 	if err != nil {
 		return err
 	}
+	_, _, err = t.managePrometheusRole(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+	_, _, err = t.managePrometheusRoleBinding(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+	_, _, err = t.manageServiceMonitor(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
+
 	configMap, _, err := t.manageConfigMap(ctx, ownerReference)
 	if err != nil {
 		return err
@@ -198,38 +225,57 @@ func (t *TargetConfigReconciler) manageCertManagerCertificate(ctx context.Contex
 		Resource: "certificates",
 	}
 	service := resourceread.ReadServiceV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_service_jobset-webhook-service.yaml"))
-	issuer, err := resourceread.ReadGenericWithUnstructured(bindata.MustAsset("assets/jobset-controller-generated/cert-manager.io_v1_certificate_jobset-serving-cert.yaml"))
+	cert, err := resourceread.ReadGenericWithUnstructured(bindata.MustAsset("assets/jobset-controller-generated/cert-manager.io_v1_certificate_jobset-serving-cert.yaml"))
 	if err != nil {
 		return nil, false, err
 	}
-	issuerAsUnstructured, ok := issuer.(*unstructured.Unstructured)
+	certAsUnstructured, ok := cert.(*unstructured.Unstructured)
 	if !ok {
-		return nil, false, fmt.Errorf("issuer is not an Unstructured")
+		return nil, false, fmt.Errorf("cert is not an Unstructured")
 	}
-	issuerAsUnstructured.SetNamespace(t.operatorNamespace)
-	ownerReferences := issuerAsUnstructured.GetOwnerReferences()
+	certAsUnstructured.SetNamespace(t.operatorNamespace)
+	ownerReferences := certAsUnstructured.GetOwnerReferences()
 	ownerReferences = append(ownerReferences, ownerReference)
-	issuerAsUnstructured.SetOwnerReferences(ownerReferences)
-	dnsNames, found, err := unstructured.NestedStringSlice(issuerAsUnstructured.Object, "spec", "dnsNames")
-	if !found || err != nil {
-		return nil, false, fmt.Errorf("%v: .spec.dnsNames not found: %v", issuerAsUnstructured.GetName(), err)
+	certAsUnstructured.SetOwnerReferences(ownerReferences)
+	if err = setDNSNamesToUnstructured(certAsUnstructured, "SERVICE", service.Name, t.operatorNamespace); err != nil {
+		return nil, false, err
 	}
-	for i := range dnsNames {
-		dnsNames[i] = strings.Replace(dnsNames[i], "$(SERVICE_NAME)", service.Name, 1)
-		dnsNames[i] = strings.Replace(dnsNames[i], "$(SERVICE_NAMESPACE)", t.operatorNamespace, 1)
-	}
-	unstructured.SetNestedStringSlice(issuerAsUnstructured.Object, dnsNames, "spec", "dnsNames")
-	return resourceapply.ApplyUnstructuredResourceImproved(ctx, t.dynamicClient, t.eventRecorder, issuerAsUnstructured, t.resourceCache, gvr, nil, nil)
+	return resourceapply.ApplyUnstructuredResourceImproved(ctx, t.dynamicClient, t.eventRecorder, certAsUnstructured, t.resourceCache, gvr, nil, nil)
 }
 
-func (t *TargetConfigReconciler) manageWebhookCertSecret() (*corev1.Secret, bool, error) {
-	secret, err := t.secretsLister.Secrets(t.operatorNamespace).Get(WebhookCertificateName)
+func (t *TargetConfigReconciler) manageMetricsCertificate(ctx context.Context, ownerReference metav1.OwnerReference) (*unstructured.Unstructured, bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "certificates",
+	}
+	service := resourceread.ReadServiceV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_service_jobset-controller-manager-metrics-service.yaml"))
+	cert, err := resourceread.ReadGenericWithUnstructured(bindata.MustAsset("assets/jobset-controller-generated/cert-manager.io_v1_certificate_jobset-metrics-cert.yaml"))
+	if err != nil {
+		return nil, false, err
+	}
+	certAsUnstructured, ok := cert.(*unstructured.Unstructured)
+	if !ok {
+		return nil, false, fmt.Errorf("cert is not an Unstructured")
+	}
+	certAsUnstructured.SetNamespace(t.operatorNamespace)
+	ownerReferences := certAsUnstructured.GetOwnerReferences()
+	ownerReferences = append(ownerReferences, ownerReference)
+	certAsUnstructured.SetOwnerReferences(ownerReferences)
+	if err = setDNSNamesToUnstructured(certAsUnstructured, "METRICS_SERVICE", service.Name, t.operatorNamespace); err != nil {
+		return nil, false, err
+	}
+	return resourceapply.ApplyUnstructuredResourceImproved(ctx, t.dynamicClient, t.eventRecorder, certAsUnstructured, t.resourceCache, gvr, nil, nil)
+}
+
+func (t *TargetConfigReconciler) checkSecretReady(secretName string) (*corev1.Secret, bool, error) {
+	secret, err := t.secretsLister.Secrets(t.operatorNamespace).Get(secretName)
 	// secret should be generated by the cert manager
 	if err != nil {
 		return nil, false, err
 	}
 	if len(secret.Data["tls.crt"]) == 0 || len(secret.Data["tls.key"]) == 0 {
-		return nil, false, fmt.Errorf("%s secret is not initialized", secret.Name)
+		return nil, false, fmt.Errorf("%s secret is not initialized", secretName)
 	}
 	return secret, false, nil
 }
@@ -288,6 +334,47 @@ func (t *TargetConfigReconciler) manageCRD(ctx context.Context, ownerReference m
 	}
 
 	return resourceapply.ApplyCustomResourceDefinitionV1(ctx, t.apiextensionsClient.ApiextensionsV1(), t.eventRecorder, crd)
+}
+
+func (t *TargetConfigReconciler) managePrometheusRole(ctx context.Context, ownerReference metav1.OwnerReference) (*rbacv1.Role, bool, error) {
+	required := resourceread.ReadRoleV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/rbac.authorization.k8s.io_v1_role_jobset-prometheus-k8s.yaml"))
+	required.Namespace = t.operatorNamespace
+	required.OwnerReferences = []metav1.OwnerReference{ownerReference}
+
+	return resourceapply.ApplyRole(ctx, t.kubeClient.RbacV1(), t.eventRecorder, required)
+}
+
+func (t *TargetConfigReconciler) managePrometheusRoleBinding(ctx context.Context, ownerReference metav1.OwnerReference) (*rbacv1.RoleBinding, bool, error) {
+	required := resourceread.ReadRoleBindingV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/rbac.authorization.k8s.io_v1_rolebinding_jobset-prometheus-k8s.yaml"))
+	required.Namespace = t.operatorNamespace
+	required.OwnerReferences = []metav1.OwnerReference{ownerReference}
+
+	for i := range required.Subjects {
+		required.Subjects[i].Namespace = OpenshiftMonitoringNamespace
+	}
+
+	return resourceapply.ApplyRoleBinding(ctx, t.kubeClient.RbacV1(), t.eventRecorder, required)
+}
+
+func (t *TargetConfigReconciler) manageServiceMonitor(ctx context.Context, ownerReference metav1.OwnerReference) (*unstructured.Unstructured, bool, error) {
+	service := resourceread.ReadServiceV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/v1_service_jobset-controller-manager-metrics-service.yaml"))
+	servicemonitor := ReadServiceMonitorV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/monitoring.coreos.com_v1_servicemonitor_jobset-controller-manager-metrics-monitor.yaml"))
+	servicemonitor.Namespace = t.operatorNamespace
+	servicemonitor.OwnerReferences = []metav1.OwnerReference{ownerReference}
+
+	for i, endpoint := range servicemonitor.Spec.Endpoints {
+		endpoint.TLSConfig.ServerName = ptr.To(injectService("METRICS_SERVICE", ptr.Deref(endpoint.TLSConfig.ServerName, ""), service.Name, t.operatorNamespace))
+		// clear out the references
+		endpoint.TLSConfig.SafeTLSConfig.Cert.Secret = nil
+		endpoint.TLSConfig.SafeTLSConfig.Cert.ConfigMap = nil
+		endpoint.TLSConfig.SafeTLSConfig.KeySecret = nil
+		// set mounted secret in the openshift-monitoring prometheus
+		endpoint.TLSConfig.CertFile = fmt.Sprintf("%s/%s", PrometheusClientCertsPath, "tls.crt")
+		endpoint.TLSConfig.KeyFile = fmt.Sprintf("%s/%s", PrometheusClientCertsPath, "tls.key")
+		servicemonitor.Spec.Endpoints[i] = endpoint
+	}
+
+	return ApplyServiceMonitor(ctx, t.dynamicClient, t.eventRecorder, servicemonitor, t.resourceCache)
 }
 
 func (t *TargetConfigReconciler) manageConfigMap(ctx context.Context, ownerReference metav1.OwnerReference) (*corev1.ConfigMap, bool, error) {
@@ -362,6 +449,29 @@ func isResourceRegistered(discoveryClient discovery.DiscoveryInterface, gvk sche
 	return false, nil
 }
 
+func setDNSNamesToUnstructured(certAsUnstructured *unstructured.Unstructured, varPrefix, serviceName, serviceNamespace string) error {
+	dnsNames, found, err := unstructured.NestedStringSlice(certAsUnstructured.Object, "spec", "dnsNames")
+	if !found || err != nil {
+		return fmt.Errorf("%v: .spec.dnsNames not found: %v", certAsUnstructured.GetName(), err)
+	}
+	for i := range dnsNames {
+		dnsNames[i] = injectService(varPrefix, dnsNames[i], serviceName, serviceNamespace)
+	}
+	return unstructured.SetNestedStringSlice(certAsUnstructured.Object, dnsNames, "spec", "dnsNames")
+}
+
+func injectService(varPrefix, value, serviceName, serviceNamespace string) string {
+	switch {
+	case strings.Index(value, "$(") >= 0:
+		value = strings.Replace(value, fmt.Sprintf("$(%s_NAME)", varPrefix), serviceName, 1)
+		value = strings.Replace(value, fmt.Sprintf("$(%s_NAMESPACE)", varPrefix), serviceNamespace, 1)
+	case strings.Index(value, "${") >= 0:
+		value = strings.Replace(value, fmt.Sprintf("${%s_NAME}", varPrefix), serviceName, 1)
+		value = strings.Replace(value, fmt.Sprintf("${%s_NAMESPACE}", varPrefix), serviceNamespace, 1)
+	}
+	return value
+}
+
 func injectCertManagerCA(obj metav1.Object, namespace string) error {
 	annotations := obj.GetAnnotations()
 	if _, ok := annotations[CertManagerInjectCaAnnotation]; !ok {
@@ -369,7 +479,7 @@ func injectCertManagerCA(obj metav1.Object, namespace string) error {
 	}
 	injectAnnotation := annotations[CertManagerInjectCaAnnotation]
 	injectAnnotation = strings.Replace(injectAnnotation, "$(CERTIFICATE_NAMESPACE)", namespace, 1)
-	injectAnnotation = strings.Replace(injectAnnotation, "$(CERTIFICATE_NAME)", WebhookCertificateSecretName, 1)
+	injectAnnotation = strings.Replace(injectAnnotation, "$(CERTIFICATE_NAME)", WebhookCertificateName, 1)
 	annotations[CertManagerInjectCaAnnotation] = injectAnnotation
 	obj.SetAnnotations(annotations)
 	return nil

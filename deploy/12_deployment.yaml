@@ -26,7 +26,7 @@ spec:
               drop: ["ALL"]
           image: ${OPERATOR_IMAGE}
           ports:
-          - containerPort: 60000
+          - containerPort: 8443
             name: metrics
           command:
           - jobset-operator
