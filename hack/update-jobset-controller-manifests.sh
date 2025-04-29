@@ -56,16 +56,12 @@ pushd "${JOBSET_CONTROLLER_DIR}"
     # backup kustomization.yaml and edit the default values
     pushd "${JOBSET_CONTROLLER_DIR}/config/default"
       cp "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml" "${SCRIPT_ROOT}/_tmp/jobset_kustomization.yaml.bak"
-      sed -i 's!#- webhookcainjection_patch.yaml!- webhookcainjection_patch.yaml!' "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml"
-      sed -i 's!#- certmanager_metrics_manager_patch.yaml!- certmanager_metrics_manager_patch.yaml!' "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml"
+      "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add patch --path "webhookcainjection_patch.yaml"
+      "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add patch --path "certmanager_metrics_manager_patch.yaml"
       "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit set namespace ${JOBSET_NAMESPACE}
       "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit remove resource "../components/internalcert"
       "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add resource "../components/certmanager"
       "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add resource "../prometheus"
-    popd
-    pushd "${JOBSET_CONTROLLER_DIR}/config/components/certmanager"
-      cp "${JOBSET_CONTROLLER_DIR}/config/components/certmanager/kustomization.yaml" "${SCRIPT_ROOT}/_tmp/jobset_components_certmanager_kustomization.yaml.bak"
-      "${JOBSET_CONTROLLER_DIR}/bin/kustomize" edit add resource "certificate_metrics.yaml"
     popd
     pushd "${JOBSET_CONTROLLER_DIR}/config/components/manager"
       cp "${JOBSET_CONTROLLER_DIR}/config/components/manager/kustomization.yaml" "${SCRIPT_ROOT}/_tmp/jobset_components_manager_kustomization.yaml.bak"
@@ -78,7 +74,6 @@ pushd "${JOBSET_CONTROLLER_DIR}"
     "${JOBSET_CONTROLLER_DIR}/bin/kustomize" build config/default -o "${JOBSET_ASSETS_DIR}"
     # restore back to the original state
     mv "${SCRIPT_ROOT}/_tmp/jobset_kustomization.yaml.bak" "${JOBSET_CONTROLLER_DIR}/config/default/kustomization.yaml"
-    mv  "${SCRIPT_ROOT}/_tmp/jobset_components_certmanager_kustomization.yaml.bak" "${JOBSET_CONTROLLER_DIR}/config/components/certmanager/kustomization.yaml"
     mv  "${SCRIPT_ROOT}/_tmp/jobset_components_manager_kustomization.yaml.bak" "${JOBSET_CONTROLLER_DIR}/config/components/manager/kustomization.yaml"
     mv  "${SCRIPT_ROOT}/_tmp/jobset_components_prometheus_kustomization.yaml.bak" "${JOBSET_CONTROLLER_DIR}/config/components/prometheus/kustomization.yaml"
   git checkout "${ORIGINAL_GIT_BRANCH_OR_COMMIT}"
