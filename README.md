@@ -1,7 +1,7 @@
 # JobSet Operator
 
 The JobSet Operator provides the ability to deploy a
-[JobSet controller](https://github.com/kubernetes-sigs/jobset) in OpenShift.
+[JobSet controller](https://github.com/openshift/kubernetes-sigs-jobset) in OpenShift.
 
 ## Deploy the Operator
 
@@ -20,16 +20,17 @@ The JobSet Operator provides the ability to deploy a
    ```sh
    mkdir -p $HOME/go/src/sigs.k8s.io
    cd $HOME/go/src/sigs.k8s.io
-   git clone https://github.com/kubernetes-sigs/jobset
-   cd $HOME/go/src/sigs.k8s.io/jobset
+   git clone https://github.com/openshift/kubernetes-sigs-jobset
+   cd $HOME/go/src/sigs.k8s.io/kubernetes-sigs-jobset
    export QUAY_USER=${your_quay_user_id}
    export IMAGE_TAG=${your_image_tag}
    podman build -t quay.io/${QUAY_USER}/jobset:${IMAGE_TAG} .
    podman login quay.io -u ${QUAY_USER}
    podman push quay.io/${QUAY_USER}/jobset:${IMAGE_TAG}
    ```
-4. Update the image spec under `.spec.template.spec.containers[0].env[2].value` (`.name == "IMAGE"`) field in the `deploy/12_deployment.yaml` Deployment to point to the newly built image
-5. Apply the manifests from `deploy` directory:
+4. Update the image spec under `.spec.template.spec.containers[0].env[2].value` (`.name == "OPERAND_IMAGE"`) field in the `deploy/12_deployment.yaml` Deployment to point to the newly built image.
+5. Make sure cert-manager is installed.
+6. Apply the manifests from `deploy` directory:
    ```sh
-   oc apply -f deploy/
+   oc apply -f deploy/ --server-side
    ```
