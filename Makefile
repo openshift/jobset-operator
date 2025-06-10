@@ -1,6 +1,8 @@
 all: build
 .PHONY: all
 
+
+
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 	golang.mk \
@@ -61,3 +63,16 @@ clean:
 	$(RM) -r ./_tmp
 	$(RM) -r ./_output
 .PHONY: clean
+
+GINKGO = $(shell pwd)/_output/tools/bin/ginkgo
+.PHONY: ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	test -s $(shell pwd)/_output/tools/bin/ginkgo || GOFLAGS=-mod=readonly GOBIN=$(shell pwd)/_output/tools/bin go install github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
+
+test-e2e: ginkgo
+	RUN_OPERATOR_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
+.PHONY: test-e2e
+
+test-e2e-operand: ginkgo
+	RUN_OPERAND_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
+.PHONY: test-e2e

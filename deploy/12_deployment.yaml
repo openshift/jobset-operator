@@ -32,7 +32,7 @@ spec:
           - jobset-operator
           args:
           - "operator"
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: OPERATOR_NAME
               value: "jobset-operator"
