@@ -140,7 +140,7 @@ func RunOperator(ctx context.Context, cc *controllercmd.ControllerContext) error
 		AddKubeInformers(kubeInformersForNamespaces)
 
 	targetConfigReconciler := NewTargetConfigReconciler(
-		os.Getenv("IMAGE"),
+		os.Getenv("OPERAND_IMAGE"),
 		namespace,
 		operatorConfigInformers.OpenShiftOperator().V1().JobSetOperators(),
 		kubeInformersForNamespaces,
