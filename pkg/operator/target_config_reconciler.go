@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/listers/core/v1"
+	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/utils/ptr"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
@@ -51,16 +51,15 @@ type TargetConfigReconciler struct {
 	targetImagePullSpec string
 	operatorNamespace   string
 
-	jobSetOperatorClient       *operatorclient.JobSetOperatorClient
-	kubeClient                 kubernetes.Interface
-	dynamicClient              dynamic.Interface
-	apiextensionsClient        *apiextensionsclient.Clientset
-	discoveryClient            discovery.DiscoveryInterface
-	eventRecorder              events.Recorder
-	kubeInformersForNamespaces v1helpers.KubeInformersForNamespaces
-	jobSetOperatorsLister      openshiftoperatorv1.JobSetOperatorLister
-	secretsLister              v1.SecretLister
-	resourceCache              resourceapply.ResourceCache
+	jobSetOperatorClient  *operatorclient.JobSetOperatorClient
+	kubeClient            kubernetes.Interface
+	dynamicClient         dynamic.Interface
+	apiextensionsClient   *apiextensionsclient.Clientset
+	discoveryClient       discovery.DiscoveryInterface
+	eventRecorder         events.Recorder
+	jobSetOperatorsLister openshiftoperatorv1.JobSetOperatorLister
+	secretsLister         listerscorev1.SecretLister
+	resourceCache         resourceapply.ResourceCache
 }
 
 func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string, operatorClientInformer operatorclientinformers.JobSetOperatorInformer, kubeInformersForNamespaces v1helpers.KubeInformersForNamespaces, jobSetOperatorClient *operatorclient.JobSetOperatorClient, kubeClient kubernetes.Interface, dynamicClient dynamic.Interface, apiextensionsClient *apiextensionsclient.Clientset, discoveryClient discovery.DiscoveryInterface, eventRecorder events.Recorder) factory.Controller {
@@ -369,9 +368,9 @@ func (t *TargetConfigReconciler) manageServiceMonitor(ctx context.Context, owner
 	for i, endpoint := range servicemonitor.Spec.Endpoints {
 		endpoint.TLSConfig.ServerName = ptr.To(injectService("METRICS_SERVICE", ptr.Deref(endpoint.TLSConfig.ServerName, ""), service.Name, t.operatorNamespace))
 		// clear out the references
-		endpoint.TLSConfig.SafeTLSConfig.Cert.Secret = nil
-		endpoint.TLSConfig.SafeTLSConfig.Cert.ConfigMap = nil
-		endpoint.TLSConfig.SafeTLSConfig.KeySecret = nil
+		endpoint.TLSConfig.Cert.Secret = nil
+		endpoint.TLSConfig.Cert.ConfigMap = nil
+		endpoint.TLSConfig.KeySecret = nil
 		// set mounted secret in the openshift-monitoring prometheus
 		endpoint.TLSConfig.CertFile = fmt.Sprintf("%s/%s", PrometheusClientCertsPath, "tls.crt")
 		endpoint.TLSConfig.KeyFile = fmt.Sprintf("%s/%s", PrometheusClientCertsPath, "tls.key")
@@ -466,10 +465,10 @@ func setDNSNamesToUnstructured(certAsUnstructured *unstructured.Unstructured, va
 
 func injectService(varPrefix, value, serviceName, serviceNamespace string) string {
 	switch {
-	case strings.Index(value, "$(") >= 0:
+	case strings.Contains(value, "$("):
 		value = strings.Replace(value, fmt.Sprintf("$(%s_NAME)", varPrefix), serviceName, 1)
 		value = strings.Replace(value, fmt.Sprintf("$(%s_NAMESPACE)", varPrefix), serviceNamespace, 1)
-	case strings.Index(value, "${") >= 0:
+	case strings.Contains(value, "${"):
 		value = strings.Replace(value, fmt.Sprintf("${%s_NAME}", varPrefix), serviceName, 1)
 		value = strings.Replace(value, fmt.Sprintf("${%s_NAMESPACE}", varPrefix), serviceNamespace, 1)
 	}

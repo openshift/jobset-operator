@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/clock"
@@ -65,7 +64,7 @@ func (j *JobSetOperatorClient) UpdateOperatorSpec(ctx context.Context, resourceV
 	}
 	original.Spec.OperatorSpec = *spec
 
-	ret, err := j.OperatorClient.JobSetOperators().Update(ctx, original, v1.UpdateOptions{})
+	ret, err := j.OperatorClient.JobSetOperators().Update(ctx, original, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, "", err
 	}
@@ -80,7 +79,7 @@ func (j *JobSetOperatorClient) UpdateOperatorStatus(ctx context.Context, resourc
 	}
 	original.Status.OperatorStatus = *status
 
-	ret, err := j.OperatorClient.JobSetOperators().UpdateStatus(ctx, original, v1.UpdateOptions{})
+	ret, err := j.OperatorClient.JobSetOperators().UpdateStatus(ctx, original, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +129,7 @@ func (j *JobSetOperatorClient) ApplyOperatorSpec(ctx context.Context, fieldManag
 		}
 	}
 
-	_, err = j.OperatorClient.JobSetOperators().Apply(ctx, desired, v1.ApplyOptions{
+	_, err = j.OperatorClient.JobSetOperators().Apply(ctx, desired, metav1.ApplyOptions{
 		Force:        true,
 		FieldManager: fieldManager,
 	})
@@ -174,7 +173,7 @@ func (j *JobSetOperatorClient) ApplyOperatorStatus(ctx context.Context, fieldMan
 		}
 	}
 
-	_, err = j.OperatorClient.JobSetOperators().ApplyStatus(ctx, desired, v1.ApplyOptions{
+	_, err = j.OperatorClient.JobSetOperators().ApplyStatus(ctx, desired, metav1.ApplyOptions{
 		Force:        true,
 		FieldManager: fieldManager,
 	})
