@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	ptr "k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	v1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
@@ -91,7 +91,7 @@ var _ = Describe("JobSet Operator", Ordered, func() {
 		err = clients.KubeClient.CoreV1().Pods(operatorNamespace).DeleteCollection(
 			ctx,
 			metav1.DeleteOptions{
-				GracePeriodSeconds: ptr.Int64(30),
+				GracePeriodSeconds: ptr.To[int64](30),
 			},
 			metav1.ListOptions{
 				LabelSelector: operandLabel,
@@ -100,21 +100,21 @@ var _ = Describe("JobSet Operator", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		// Wait recovery(Deployment will recreate Pod)
-		err = wait.Poll(5*time.Second, 3*time.Minute, func() (bool, error) {
+		err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 3*time.Minute, true, func(ctx context.Context) (bool, error) {
 			newPods, err := clients.KubeClient.CoreV1().Pods(operatorNamespace).List(ctx, metav1.ListOptions{
 				LabelSelector: operandLabel,
 			})
 			if err != nil {
 				return false, err
 			}
-			if len(newPods.Items) == 0 {
-				return false, nil
-			}
 			activePods := make([]corev1.Pod, 0)
 			for _, pod := range newPods.Items {
 				if pod.DeletionTimestamp == nil {
 					activePods = append(activePods, pod)
 				}
+			}
+			if len(activePods) == 0 {
+				return false, nil
 			}
 			for _, pod := range activePods {
 				if pod.Status.Phase != corev1.PodRunning {
