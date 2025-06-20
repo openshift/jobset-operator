@@ -25,11 +25,19 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+	ptr "k8s.io/utils/pointer"
 
 	v1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+)
+
+const (
+	operatorNamespace = "openshift-jobset-operator"
+	operandLabel      = "control-plane=controller-manager"
 )
 
 var _ = Describe("JobSet Operator", Ordered, func() {
@@ -71,5 +79,52 @@ var _ = Describe("JobSet Operator", Ordered, func() {
 			}
 			return nil
 		}, 5*time.Minute, 5*time.Second).Should(Succeed(), "available condition is not found")
+	})
+
+	It("Verifying operand pod deleted and recovery", func() {
+		ctx := context.TODO()
+		pods, err := clients.KubeClient.CoreV1().Pods(operatorNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: operandLabel,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods.Items).ToNot(BeEmpty())
+		err = clients.KubeClient.CoreV1().Pods(operatorNamespace).DeleteCollection(
+			ctx,
+			metav1.DeleteOptions{
+				GracePeriodSeconds: ptr.Int64(30),
+			},
+			metav1.ListOptions{
+				LabelSelector: operandLabel,
+			},
+		)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Wait recovery(Deployment will recreate Pod)
+		err = wait.Poll(5*time.Second, 3*time.Minute, func() (bool, error) {
+			newPods, err := clients.KubeClient.CoreV1().Pods(operatorNamespace).List(ctx, metav1.ListOptions{
+				LabelSelector: operandLabel,
+			})
+			if err != nil {
+				return false, err
+			}
+			if len(newPods.Items) == 0 {
+				return false, nil
+			}
+			activePods := make([]corev1.Pod, 0)
+			for _, pod := range newPods.Items {
+				if pod.DeletionTimestamp == nil {
+					activePods = append(activePods, pod)
+				}
+			}
+			for _, pod := range activePods {
+				if pod.Status.Phase != corev1.PodRunning {
+					klog.Infof("Pod %s status: %s", pod.Name, pod.Status.Phase)
+					return false, nil
+				}
+				klog.Infof("Pod %s is Running", pod.Name)
+			}
+			return true, nil
+		})
+		Expect(err).NotTo(HaveOccurred())
 	})
 })

@@ -34,3 +34,17 @@ The JobSet Operator provides the ability to deploy a
    ```sh
    oc apply -f deploy/ --server-side
    ```
+
+## E2E Test
+Set kubeconfig to point to a OCP cluster
+Set OPERATOR_IMAGE to point to your operator image
+Set RELATED_IMAGE_OPERAND_IMAGE to point to your jobset image you want to test
+
+Run operator e2e test
+```sh
+make test-e2e
+```
+Run operand e2e test
+```sh
+make test-e2e-operand
+```
