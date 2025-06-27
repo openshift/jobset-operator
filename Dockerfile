@@ -7,7 +7,7 @@ RUN make build --warn-undefined-variables
 FROM registry.redhat.io/rhel9-4-els/rhel-minimal:9.4
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/jobset-operator /usr/bin/
 RUN mkdir /licenses
-COPY --from=builder /go/src/github.com/openshift/lws-operator/LICENSE /licenses/.
+COPY --from=builder /go/src/github.com/openshift/jobset-operator/LICENSE /licenses/.
 
 LABEL com.redhat.component="Job Set Operator"
 LABEL description="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit. It aims to offer a unified API for deploying HPC (e.g., MPI) and AI/ML training workloads (PyTorch, Jax, Tensorflow etc.) on Kubernetes."
