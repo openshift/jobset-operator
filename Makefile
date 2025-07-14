@@ -73,7 +73,7 @@ lint: golangci-lint
 .PHONY: lint
 
 verify-codegen:
-	hack/verify-codegen.sh
+	GO=GO111MODULE=on GOFLAGS=-mod=readonly hack/verify-codegen.sh
 .PHONY: verify-codegen
 
 verify-controller-manifests:
