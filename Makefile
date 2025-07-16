@@ -25,7 +25,7 @@ IMAGE_REGISTRY :=registry.ci.openshift.org
 # $2 - image ref
 # $3 - Dockerfile path
 # $4 - context directory for image build
-$(call build-image,ocp-jobset-operator,$(IMAGE_REGISTRY)/ocp/4.19:jobset-operator, ./Dockerfile,.)
+$(call build-image,ocp-jobset-operator,$(IMAGE_REGISTRY)/ocp/4.20:jobset-operator, ./Dockerfile,.)
 
 $(call verify-golang-versions,Dockerfile)
 
@@ -73,7 +73,7 @@ lint: golangci-lint
 .PHONY: lint
 
 verify-codegen:
-	hack/verify-codegen.sh
+	GO=GO111MODULE=on GOFLAGS=-mod=readonly hack/verify-codegen.sh
 .PHONY: verify-codegen
 
 verify-controller-manifests:
