@@ -1,0 +1,25 @@
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageDigestMirrorSet
+metadata:
+  name: jobset-operator-mirror-set
+spec:
+  imageDigestMirrors:
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-main
+      source: registry.redhat.io/job-set/jobset-operator-bundle
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-main
+      source: registry.stage.redhat.io/job-set/jobset-operator-bundle
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-main
+      source: registry.redhat.io/job-set/jobset-rhel9-operator
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-main
+      source: registry.stage.redhat.io/job-set/jobset-rhel9-operator
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operand-main
+      source: registry.redhat.io/job-set/jobset-rhel9
+    - mirrors:
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operand-main
+      source: registry.stage.redhat.io/job-set/jobset-rhel9
