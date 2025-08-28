@@ -74,6 +74,8 @@ spec:
           readOnly: true
       securityContext:
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: jobset-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
