@@ -4,4 +4,4 @@ GenerateMinorChannels: true
 DefaultChannelTypePreference: "minor"
 Stable:
   Bundles:
-    - Image: registry.stage.redhat.io/job-set/jobset-operator-bundle@sha256:7b0747746ddf8204fb932b71a1ce01af372e223fa7c721d10b55ce4e8631d1d0
+    - Image: registry.redhat.io/job-set/jobset-operator-bundle@sha256:dfaa13369b484f4b440694d656d961cd551dc5fdc9bb7bee9c761d18c8ed6e93
