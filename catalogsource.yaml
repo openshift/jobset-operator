@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: jobset-operator
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: <IMAGE>
+  displayName: JSO
+  publisher: Red Hat
