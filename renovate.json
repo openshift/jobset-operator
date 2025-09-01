@@ -25,6 +25,7 @@
         ],
         "automerge": true,
         "addLabels": [
+          "jira/valid-reference",
           "lgtm",
           "approved"
         ]
@@ -41,6 +42,7 @@
         ],
         "automerge": true,
         "addLabels": [
+          "jira/valid-reference",
           "lgtm",
           "approved"
         ]
