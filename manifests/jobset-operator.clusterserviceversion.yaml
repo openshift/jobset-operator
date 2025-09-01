@@ -364,6 +364,7 @@ spec:
             - get
             - list
             - watch
+        serviceAccountName: jobset-operator
       deployments:
         - name: jobset-operator
           spec:
