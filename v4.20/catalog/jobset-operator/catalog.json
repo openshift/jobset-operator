@@ -17,7 +17,7 @@
     "schema": "olm.bundle",
     "name": "jobset-operator.v0.1.0",
     "package": "job-set",
-    "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:aad5f3308dbe7b457585a6fdf5dd1f41be4c73ce5014476201b8a5e54f0dc650",
+    "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:66d1faac6e1d8be7442210e9948242b51c3df58499d65206737c253eea728228",
     "properties": [
         {
             "type": "olm.gvk",
@@ -38,7 +38,7 @@
             "type": "olm.csv.metadata",
             "value": {
                 "annotations": {
-                    "alm-examples": "[\n  {\n    \"apiVersion\": \"operator.openshift.io/v1\",\n    \"kind\": \"JobSetOperator\",\n    \"metadata\": {\n      \"name\": \"cluster\",\n      \"namespace\": \"openshift-jobset-operator\"\n    },\n    \"spec\": {\n      \"managementState\": \"Managed\",\n    }\n  }\n]",
+                    "alm-examples": "[\n  {\n    \"apiVersion\": \"operator.openshift.io/v1\",\n    \"kind\": \"JobSetOperator\",\n    \"metadata\": {\n      \"name\": \"cluster\",\n      \"namespace\": \"openshift-jobset-operator\"\n    },\n    \"spec\": {\n      \"managementState\": \"Managed\",\n    }\n  }\n]\n",
                     "capabilities": "Basic Install",
                     "categories": "OpenShift Optional",
                     "console.openshift.io/operator-monitoring-default": "true",
@@ -129,15 +129,15 @@
     "relatedImages": [
         {
             "name": "jobset-operator",
-            "image": "registry.redhat.io/job-set/jobset-rhel9-operator@sha256:20fe7235f62fd73999fce90fd35bdfe9a72e4da6d961c7a302d548602ba11e6d"
+            "image": "registry.redhat.io/job-set/jobset-rhel9-operator@sha256:9059c694fff29b36c0cdfc3b5d7b7e5c0574377a9b09116e39679336bccf843e"
         },
         {
             "name": "jobset",
-            "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:0df5b71984348af280e12df5e7ec4254cdeec471e8dec12800eb605dd66b6872"
+            "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:fdfbb26394725cfb400f4bd1ccdc84f9ca0831cf77433e6ff01c62c632319d33"
         },
         {
             "name": "",
-            "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:aad5f3308dbe7b457585a6fdf5dd1f41be4c73ce5014476201b8a5e54f0dc650"
+            "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:66d1faac6e1d8be7442210e9948242b51c3df58499d65206737c253eea728228"
         }
     ]
 }
