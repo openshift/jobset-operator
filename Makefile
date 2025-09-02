@@ -1,7 +1,7 @@
 all: build
 .PHONY: all
 
-# Use go.mod go version as a single source of truth of Ginkgo version.
+# Use go.mod go version as a single source of truth of Ginkgo version. 
 GINKGO_VERSION ?= $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
 
 GOLANGCI_LINT = $(shell pwd)/_output/tools/bin/golangci-lint
