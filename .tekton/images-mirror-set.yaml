@@ -7,19 +7,19 @@ spec:
   imageDigestMirrors:
     - mirrors:
         - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-main
-        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-0-1
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-bundle-0-1
       source: registry.redhat.io/job-set/jobset-operator-bundle
     - mirrors:
         - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-main
-        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-0-1
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-bundle-0-1
       source: registry.stage.redhat.io/job-set/jobset-operator-bundle
     - mirrors:
         - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-main
-        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-0-1
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-0-1
       source: registry.redhat.io/job-set/jobset-rhel9-operator
     - mirrors:
         - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-main
-        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-0-1
+        - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-0-1
       source: registry.stage.redhat.io/job-set/jobset-rhel9-operator
     - mirrors:
         - quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operand-main
