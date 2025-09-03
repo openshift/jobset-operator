@@ -32,6 +32,7 @@ const (
 	operatorNamespace = "openshift-jobset-operator"
 )
 
+// RunOperator
 func RunOperator(ctx context.Context, cc *controllercmd.ControllerContext) error {
 	namespace := cc.OperatorNamespace
 	if namespace == "openshift-config-managed" {
