@@ -5,7 +5,7 @@ COPY . .
 ARG OPERAND_IMAGE=registry.redhat.io/job-set/jobset-rhel9@sha256:fdfbb26394725cfb400f4bd1ccdc84f9ca0831cf77433e6ff01c62c632319d33
 ARG REPLACED_OPERAND_IMG=\${OPERAND_IMAGE}
 
-# Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERAND_IMAGE build argument.
+# Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERAND_IMAGE build argument. 
 RUN hack/replace-image.sh deploy $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 RUN hack/replace-image.sh manifests $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 
