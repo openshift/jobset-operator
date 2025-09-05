@@ -30,7 +30,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main/jobset-operator-bundle-main:{{revision}}
+    value: quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-bundle-main:{{revision}}
   - name: dockerfile
     value: bundle.Dockerfile
   - name: path-context
