@@ -103,6 +103,15 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 		return fmt.Errorf("please make sure that cert-manager is installed on your cluster")
 	}
 
+	spec, _, _, err := t.jobSetOperatorClient.GetOperatorState()
+	if err != nil {
+		return err
+	}
+
+	if spec.ManagementState != operatorv1.Managed {
+		return nil
+	}
+
 	jobSetOperator, err := t.jobSetOperatorsLister.Get(operatorclient.OperatorConfigName)
 	if err != nil {
 		return fmt.Errorf("unable to get operator configuration %s/%s: %v", t.operatorNamespace, operatorclient.OperatorConfigName, err)
