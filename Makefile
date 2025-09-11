@@ -1,11 +1,20 @@
 all: build
 .PHONY: all
 
+SOURCE_GIT_TAG ?=$(shell git describe --long --tags --abbrev=7 --match 'v[0-9]*' || echo 'v0.1.0-$(SOURCE_GIT_COMMIT)')
+SOURCE_GIT_COMMIT ?=$(shell git rev-parse --short "HEAD^{commit}" 2>/dev/null)
+
 # Use go.mod go version as a single source of truth of Ginkgo version. 
 GINKGO_VERSION ?= $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
 
 GOLANGCI_LINT = $(shell pwd)/_output/tools/bin/golangci-lint
 GOLANGCI_LINT_VERSION ?= v2.1.6
+
+# OS_GIT_VERSION is populated by ART
+# If building out of the ART pipeline, fallback to SOURCE_GIT_TAG
+ifndef OS_GIT_VERSION
+	OS_GIT_VERSION = $(SOURCE_GIT_TAG)
+endif
 
 # Include the library makefile
 include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
