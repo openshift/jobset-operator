@@ -43,7 +43,6 @@ LABEL release="0.1.0"
 LABEL version="0.1.0"
 LABEL url="https://github.com/openshift/jobset-operator"
 LABEL vendor="Red Hat, Inc."
-LABEL name="jobset-operator-bundle"
 LABEL summary="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit."
 LABEL io.k8s.display-name="Job Set" \
       io.k8s.description="This is an operator to manage Job Set" \
