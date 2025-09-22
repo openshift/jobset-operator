@@ -11,7 +11,8 @@ COPY --from=builder /go/src/github.com/openshift/jobset-operator/LICENSE /licens
 
 LABEL com.redhat.component="Job Set Operator"
 LABEL description="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit. It aims to offer a unified API for deploying HPC (e.g., MPI) and AI/ML training workloads (PyTorch, Jax, Tensorflow etc.) on Kubernetes."
-LABEL name="jobset-operator"
+LABEL name="job-set/jobset-rhel9-operator"
+LABEL cpe="cpe:/a:redhat:job_set:0.1::el9"
 LABEL summary="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit."
 LABEL io.k8s.display-name="Job Set" \
       io.k8s.description="This is an operator to manage the Job Set" \
