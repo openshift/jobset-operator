@@ -1,11 +1,11 @@
 {
     "schema": "olm.package",
     "name": "job-set",
-    "defaultChannel": "stable-v0.1"
+    "defaultChannel": "tech-preview-v0.1"
 }
 {
     "schema": "olm.channel",
-    "name": "stable-v0.1",
+    "name": "tech-preview-v0.1",
     "package": "job-set",
     "entries": [
         {
@@ -17,7 +17,7 @@
     "schema": "olm.bundle",
     "name": "jobset-operator.v0.1.0",
     "package": "job-set",
-    "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:b7ff6e1929c90351f7be8cc64272674ce04949ad65fa366fd48a9c8ea1541462",
+    "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:dd5a8851a6e02753851c0338c54dcb0d2aba40098be60190e9485b1e1b4f17b9",
     "properties": [
         {
             "type": "olm.gvk",
@@ -128,16 +128,16 @@
     ],
     "relatedImages": [
         {
+            "name": "",
+            "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:dd5a8851a6e02753851c0338c54dcb0d2aba40098be60190e9485b1e1b4f17b9"
+        },
+        {
             "name": "jobset-operator",
-            "image": "registry.redhat.io/job-set/jobset-rhel9-operator@sha256:711b9f3201ae0c2365c4f6cee7ef96334d690806e7d5802496517e671bcc2e11"
+            "image": "registry.redhat.io/job-set/jobset-rhel9-operator@sha256:63fd79b4565fd3d7c5ddf95ee275b59f5e354db9a1bc96ebcab2d0a337709416"
         },
         {
             "name": "jobset",
-            "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:0f5e54108a9daaeed411abd4dd8c01e96e70e8c24477eec526aa20f1bacc9319"
-        },
-        {
-            "name": "",
-            "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:b7ff6e1929c90351f7be8cc64272674ce04949ad65fa366fd48a9c8ea1541462"
+            "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:3e25876516e30d8c5235f10205608f6bcb36f6a4627e4dcfa55c7f57def08428"
         }
     ]
 }
