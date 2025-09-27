@@ -9,7 +9,7 @@ ARG REPLACED_OPERAND_IMG=\${OPERAND_IMAGE}
 RUN hack/replace-image.sh deploy $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 RUN hack/replace-image.sh manifests $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 
-ARG OPERATOR_IMAGE=registry.redhat.io/job-set/jobset-rhel9-operator@sha256:63fd79b4565fd3d7c5ddf95ee275b59f5e354db9a1bc96ebcab2d0a337709416
+ARG OPERATOR_IMAGE=registry.redhat.io/job-set/jobset-rhel9-operator@sha256:278804eb846b592f0b2d11a3da1eda47a2c5c98dbd002041357d8684e3fe8393
 ARG REPLACED_OPERATOR_IMG=\${OPERATOR_IMAGE}
 
 # Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERATOR_IMAGE build argument.
