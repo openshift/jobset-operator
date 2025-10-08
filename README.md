@@ -3,6 +3,12 @@
 The JobSet Operator provides the ability to deploy a
 [JobSet controller](https://github.com/openshift/kubernetes-sigs-jobset) in OpenShift.
 
+## Releases
+
+| jobset version | ocp version | k8s version | golang |
+|----------------|-------------|-------------|--------|
+| 0.1.0          | 4.18-4.20   | 1.33        | 1.24   |
+
 ## Deploy the Operator
 
 ### Quick Development
