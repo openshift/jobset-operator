@@ -100,6 +100,15 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 		return fmt.Errorf("unable to check cert-manager is installed: %v", err)
 	}
 	if !found {
+		_, _, err = v1helpers.UpdateStatus(ctx, t.jobSetOperatorClient, v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
+			Type:    operatorv1.OperatorStatusTypeDegraded,
+			Status:  operatorv1.ConditionTrue,
+			Reason:  "MissingDependency",
+			Message: "please make sure that cert-manager is installed on your cluster",
+		}))
+		if err != nil {
+			return fmt.Errorf("failed to update status for cert-manager operator: %w", err)
+		}
 		return fmt.Errorf("please make sure that cert-manager is installed on your cluster")
 	}
 
@@ -108,7 +117,7 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 		return err
 	}
 
-	if spec.ManagementState != operatorv1.Managed {
+	if spec.ManagementState != "" && spec.ManagementState != operatorv1.Managed {
 		return nil
 	}
 
@@ -195,6 +204,10 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 	}, v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
 		Type:   operatorv1.OperatorStatusTypeAvailable,
 		Status: operatorv1.ConditionTrue,
+		Reason: "AsExpected",
+	}), v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
+		Type:   operatorv1.OperatorStatusTypeDegraded,
+		Status: operatorv1.ConditionFalse,
 		Reason: "AsExpected",
 	}))
 	return err
