@@ -12,7 +12,7 @@ metadata:
             "namespace": "openshift-jobset-operator"
           },
           "spec": {
-            "managementState": "Managed",
+            "managementState": "Managed"
           }
         }
       ]
