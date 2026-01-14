@@ -1,0 +1,7 @@
+Schema: olm.semver
+GenerateMajorChannels: false
+GenerateMinorChannels: true
+DefaultChannelTypePreference: "minor"
+Stable:
+  Bundles:
+    - Image: registry.redhat.io/job-set/jobset-operator-bundle@sha256:1f8fd0e1c6636b04dcc7cf4cf27d33edd70c31db5b6c5fc305e415df8a5b10d5
