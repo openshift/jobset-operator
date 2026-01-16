@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/client-go/listers/apps/v1"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/utils/ptr"
 
@@ -59,6 +60,7 @@ type TargetConfigReconciler struct {
 	eventRecorder         events.Recorder
 	jobSetOperatorsLister openshiftoperatorv1.JobSetOperatorLister
 	secretsLister         listerscorev1.SecretLister
+	deploymentsLister     v1.DeploymentLister
 	resourceCache         resourceapply.ResourceCache
 }
 
@@ -72,6 +74,7 @@ func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string, op
 		apiextensionsClient:   apiextensionsClient,
 		discoveryClient:       discoveryClient,
 		secretsLister:         kubeInformersForNamespaces.SecretLister(),
+		deploymentsLister:     kubeInformersForNamespaces.InformersFor(operatorNamespace).Apps().V1().Deployments().Lister(),
 		jobSetOperatorsLister: operatorClientInformer.Lister(),
 		eventRecorder:         eventRecorder,
 		resourceCache:         resourceapply.NewResourceCache(),
@@ -91,6 +94,20 @@ func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string, op
 }
 
 func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	spec, _, _, err := t.jobSetOperatorClient.GetOperatorState()
+	if err != nil {
+		return err
+	}
+	if spec.ManagementState != "" && spec.ManagementState != operatorv1.Managed {
+		return nil
+	}
+	{
+		deployment, getDeploymentErr := t.deploymentsLister.Deployments(t.operatorNamespace).Get(operatorclient.OperandName)
+		_, _, err := v1helpers.UpdateStatus(ctx, t.jobSetOperatorClient, v1helpers.UpdateConditionFn(constructAvailableCondition(getDeploymentErr, deployment)))
+		if err != nil {
+			return fmt.Errorf("failed to update status condition: %w", err)
+		}
+	}
 	found, err := isResourceRegistered(t.discoveryClient, schema.GroupVersionKind{
 		Group:   "cert-manager.io",
 		Version: "v1",
@@ -110,15 +127,6 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 			return fmt.Errorf("failed to update status for cert-manager operator: %w", err)
 		}
 		return fmt.Errorf("please make sure that cert-manager is installed on your cluster")
-	}
-
-	spec, _, _, err := t.jobSetOperatorClient.GetOperatorState()
-	if err != nil {
-		return err
-	}
-
-	if spec.ManagementState != "" && spec.ManagementState != operatorv1.Managed {
-		return nil
 	}
 
 	jobSetOperator, err := t.jobSetOperatorsLister.Get(operatorclient.OperatorConfigName)
@@ -200,17 +208,14 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 
 	_, _, err = v1helpers.UpdateStatus(ctx, t.jobSetOperatorClient, func(status *operatorv1.OperatorStatus) error {
 		resourcemerge.SetDeploymentGeneration(&status.Generations, deployment)
-		status.ReadyReplicas = deployment.Status.ReadyReplicas
+		status.ReadyReplicas = deployment.Status.AvailableReplicas
 		return nil
-	}, v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
-		Type:   operatorv1.OperatorStatusTypeAvailable,
-		Status: operatorv1.ConditionTrue,
-		Reason: "AsExpected",
-	}), v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
-		Type:   operatorv1.OperatorStatusTypeDegraded,
-		Status: operatorv1.ConditionFalse,
-		Reason: "AsExpected",
-	}))
+	}, v1helpers.UpdateConditionFn(constructAvailableCondition(nil, deployment)),
+		v1helpers.UpdateConditionFn(operatorv1.OperatorCondition{
+			Type:   operatorv1.OperatorStatusTypeDegraded,
+			Status: operatorv1.ConditionFalse,
+			Reason: "AsExpected",
+		}))
 	return err
 }
 
@@ -457,6 +462,24 @@ func (t *TargetConfigReconciler) manageDeployment(ctx context.Context, jobSetOpe
 		t.eventRecorder,
 		required,
 		resourcemerge.ExpectedDeploymentGeneration(required, jobSetOperator.Status.Generations))
+}
+
+func constructAvailableCondition(getDeploymentErr error, deployment *appsv1.Deployment) operatorv1.OperatorCondition {
+	availableCondition := operatorv1.OperatorCondition{
+		Type:   operatorv1.OperatorStatusTypeAvailable,
+		Status: operatorv1.ConditionTrue,
+		Reason: "AsExpected",
+	}
+	if getDeploymentErr != nil || deployment == nil || ptr.Deref(deployment.Spec.Replicas, -1) != deployment.Status.AvailableReplicas {
+		availableCondition.Status = operatorv1.ConditionFalse
+		availableCondition.Reason = "DeploymentUnavailable"
+		if getDeploymentErr != nil && !errors.IsNotFound(getDeploymentErr) {
+			availableCondition.Message = getDeploymentErr.Error()
+		} else {
+			availableCondition.Message = "Operand Deployment is not available"
+		}
+	}
+	return availableCondition
 }
 
 func isResourceRegistered(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (bool, error) {
