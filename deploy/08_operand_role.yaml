@@ -38,6 +38,15 @@ rules:
 - apiGroups:
     - ""
   resources:
+    - secrets
+  verbs:
+    - get
+    - list
+    - update
+    - watch
+- apiGroups:
+    - ""
+  resources:
     - services
     - endpoints
     - pods
