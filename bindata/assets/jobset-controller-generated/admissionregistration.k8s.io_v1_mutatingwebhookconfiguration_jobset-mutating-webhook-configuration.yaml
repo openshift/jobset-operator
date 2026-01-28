@@ -6,9 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/created-by: jobset
-    app.kubernetes.io/instance: mutating-webhook-configuration
+    app.kubernetes.io/instance: jobset
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: mutatingwebhookconfiguration
+    app.kubernetes.io/name: jobset
     app.kubernetes.io/part-of: jobset
   name: jobset-mutating-webhook-configuration
 webhooks:
