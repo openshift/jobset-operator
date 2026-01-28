@@ -1,6 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/instance: jobset
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: jobset
   name: jobset-prometheus-k8s
   namespace: openshift-jobset-operator
 roleRef:

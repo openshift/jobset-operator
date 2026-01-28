@@ -3,9 +3,9 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/created-by: jobset
-    app.kubernetes.io/instance: metrics-reader
+    app.kubernetes.io/instance: jobset
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/name: jobset
     app.kubernetes.io/part-of: jobset
   name: jobset-metrics-reader
 rules:

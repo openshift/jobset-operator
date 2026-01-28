@@ -4,6 +4,10 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
     controller-gen.kubebuilder.io/version: v0.17.2
+  labels:
+    app.kubernetes.io/instance: jobset
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: jobset
   name: jobsets.jobset.x-k8s.io
 spec:
   conversion:

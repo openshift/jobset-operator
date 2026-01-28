@@ -4,9 +4,9 @@ metadata:
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/created-by: jobset
-    app.kubernetes.io/instance: webhook-service
+    app.kubernetes.io/instance: jobset
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: service
+    app.kubernetes.io/name: jobset
     app.kubernetes.io/part-of: jobset
   name: jobset-webhook-service
   namespace: openshift-jobset-operator
@@ -16,4 +16,7 @@ spec:
     protocol: TCP
     targetPort: 9443
   selector:
+    app.kubernetes.io/instance: jobset
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: jobset
     control-plane: controller-manager
