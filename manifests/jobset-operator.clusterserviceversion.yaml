@@ -2,17 +2,18 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |
+    alm-examples: |-
       [
         {
           "apiVersion": "operator.openshift.io/v1",
           "kind": "JobSetOperator",
           "metadata": {
             "name": "cluster",
-            "namespace": "openshift-jobset-operator"
           },
           "spec": {
-            "managementState": "Managed"
+            "logLevel": "Normal",
+            "managementState": "Managed",
+            "operatorLogLevel": "Normal"
           }
         }
       ]
