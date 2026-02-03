@@ -39,7 +39,7 @@ metadata:
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: "openshift-jobset-operator"
     console.openshift.io/operator-monitoring-default: "true"
-  name: jobset-operator.v0.1.0
+  name: jobset-operator.v1.0.0
   namespace: openshift-jobset-operator
   labels:
     operatorframework.io/arch.amd64: supported
@@ -83,7 +83,7 @@ spec:
       mediatype: image/png
   provider:
     name: Red Hat, Inc.
-  version: 0.1.0
+  version: 1.0.0
   relatedImages:
     - name: jobset
       image: ${OPERAND_IMAGE}
