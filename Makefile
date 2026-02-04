@@ -67,7 +67,11 @@ generate-controller-manifests:
 	hack/update-jobset-controller-manifests.sh
 .PHONY: generate-controller-manifests
 
-generate: generate-clients regen-crd generate-controller-manifests
+update-cluster-service-version:
+	hack/update-cluster-service-version.sh
+.PHONY: update-cluster-service-version
+
+generate: generate-clients regen-crd generate-controller-manifests update-cluster-service-version
 .PHONY: generate
 
 golangci-lint:

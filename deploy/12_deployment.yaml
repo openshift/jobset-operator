@@ -34,6 +34,10 @@ spec:
           - "operator"
           imagePullPolicy: Always
           env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "jobset-operator"
             - name: OPERATOR_IMAGE
