@@ -2,17 +2,18 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |
+    alm-examples: |-
       [
         {
           "apiVersion": "operator.openshift.io/v1",
           "kind": "JobSetOperator",
           "metadata": {
             "name": "cluster",
-            "namespace": "openshift-jobset-operator"
           },
           "spec": {
-            "managementState": "Managed"
+            "logLevel": "Normal",
+            "managementState": "Managed",
+            "operatorLogLevel": "Normal"
           }
         }
       ]
@@ -38,7 +39,7 @@ metadata:
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: "openshift-jobset-operator"
     console.openshift.io/operator-monitoring-default: "true"
-  name: jobset-operator.v0.1.0
+  name: jobset-operator.v1.0.0
   namespace: openshift-jobset-operator
   labels:
     operatorframework.io/arch.amd64: supported
@@ -82,7 +83,7 @@ spec:
       mediatype: image/png
   provider:
     name: Red Hat, Inc.
-  version: 0.1.0
+  version: 1.0.0
   relatedImages:
     - name: jobset
       image: ${OPERAND_IMAGE}
@@ -91,314 +92,371 @@ spec:
   install:
     spec:
       clusterPermissions:
-      - rules:
-          - apiGroups:
-              - operator.openshift.io
-            resources:
-              - jobsetoperators
-              - jobsetoperators/status
-            verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - rbac.authorization.k8s.io
-            resources:
-              - clusterrolebindings
-            verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - config.openshift.io
-            resources:
-              - infrastructures
-            verbs:
-              - get
-              - list
-              - watch
-          # operand resources
-          - apiGroups:
-              - admissionregistration.k8s.io
-            resources:
-              - mutatingwebhookconfigurations
-              - validatingwebhookconfigurations
-            verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - apiextensions.k8s.io
-            resources:
-              - customresourcedefinitions
-            verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - rbac.authorization.k8s.io
-            resources:
-              - clusterroles
-              - clusterrolebindings
-            verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - ""
-            resources:
-              - nodes
-            verbs:
-              - get
-              - list
-              - watch
-          - apiGroups:
-              - batch
-            resources:
-              - jobs
-            verbs:
-              - create
-              - delete
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - batch
-            resources:
-              - jobs/status
-            verbs:
-              - get
-              - patch
-              - update
-          - apiGroups:
-              - jobset.x-k8s.io
-            resources:
-              - jobsets
-            verbs:
-              - create
-              - delete
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - jobset.x-k8s.io
-            resources:
-              - jobsets/finalizers
-            verbs:
-              - update
-          - apiGroups:
-              - jobset.x-k8s.io
-            resources:
-              - jobsets/status
-            verbs:
-              - get
-              - patch
-              - update
-          - nonResourceURLs:
-              - /metrics
-            verbs:
-              - get
-          - apiGroups:
-              - authentication.k8s.io
-            resources:
-              - tokenreviews
-            verbs:
-              - create
-          - apiGroups:
-              - authorization.k8s.io
-            resources:
-              - subjectaccessreviews
-            verbs:
-              - create
-          - apiGroups:
-              - ""
-            resources:
-              - events
-              - secrets
-            verbs:
-              - create
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - ""
-            resources:
-              - secrets
-            verbs:
-              - create
-              - get
-              - list
-              - patch
-              - update
-              - watch
-          - apiGroups:
-              - ""
-            resources:
-              - pods
-              - services
-            verbs:
-              - create
-              - delete
-              - get
-              - list
-              - patch
-              - update
-              - watch
-        serviceAccountName: jobset-operator
+        - rules:
+            - apiGroups:
+                - operator.openshift.io
+              resources:
+                - jobsetoperators
+                - jobsetoperators/status
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterrolebindings
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - config.openshift.io
+              resources:
+                - infrastructures
+              verbs:
+                - get
+                - list
+                - watch
+            # operand resources
+            - apiGroups:
+                - admissionregistration.k8s.io
+              resources:
+                - mutatingwebhookconfigurations
+                - validatingwebhookconfigurations
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - apiextensions.k8s.io
+              resources:
+                - customresourcedefinitions
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterroles
+                - clusterrolebindings
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - nodes
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - persistentvolumeclaims
+              verbs:
+                - create
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - pods
+              verbs:
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - services
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - admissionregistration.k8s.io
+              resources:
+                - mutatingwebhookconfigurations
+                - validatingwebhookconfigurations
+              verbs:
+                - get
+                - list
+                - update
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - jobs
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - jobs/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - jobset.x-k8s.io
+              resources:
+                - jobsets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - jobset.x-k8s.io
+              resources:
+                - jobsets/finalizers
+              verbs:
+                - update
+            - apiGroups:
+                - jobset.x-k8s.io
+              resources:
+                - jobsets/status
+              verbs:
+                - get
+                - patch
+                - update
+            - nonResourceURLs:
+                - /metrics
+              verbs:
+                - get
+            - apiGroups:
+                - authentication.k8s.io
+              resources:
+                - tokenreviews
+              verbs:
+                - create
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - subjectaccessreviews
+              verbs:
+                - create
+          serviceAccountName: jobset-operator
       permissions:
-      - rules:
-        - apiGroups:
-            - ""
-          resources:
-            - serviceaccounts
-            - events
-            - pods
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - apps
-          resources:
-            - deployments
-            - replicasets
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - coordination.k8s.io
-          resources:
-            - leases
-          verbs:
-            - get
-            - watch
-            - list
-            - create
-            - update
-            - patch
-            - delete
-        # operand resources
-        - apiGroups:
-            - rbac.authorization.k8s.io
-          resources:
-            - roles
-            - rolebindings
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - ""
-          resources:
-            - secrets
-            - services
-            - configmaps
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - cert-manager.io
-          resources:
-            - certificates
-            - issuers
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - monitoring.coreos.com
-          resources:
-            - servicemonitors
-          verbs:
-            - create
-            - delete
-            - deletecollection
-            - get
-            - list
-            - patch
-            - update
-            - watch
-        - apiGroups:
-            - ""
-          resources:
-            - endpoints
-          verbs:
-            - get
-            - list
-            - watch
-        - apiGroups:
-            - extensions
-          resources:
-            - ingresses
-          verbs:
-            - get
-            - list
-            - watch
-        - apiGroups:
-            - networking.k8s.io
-          resources:
-            - ingresses
-          verbs:
-            - get
-            - list
-            - watch
-        serviceAccountName: jobset-operator
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - serviceaccounts
+                - events
+                - pods
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - deployments
+                - replicasets
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - watch
+                - list
+                - create
+                - update
+            # operand resources
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - roles
+                - rolebindings
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - secrets
+                - services
+                - configmaps
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - cert-manager.io
+              resources:
+                - certificates
+                - issuers
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - monitoring.coreos.com
+              resources:
+                - servicemonitors
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+            - apiGroups:
+                - ""
+              resources:
+                - secrets
+              verbs:
+                - get
+                - list
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - services
+                - endpoints
+                - pods
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - extensions
+              resources:
+                - ingresses
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingresses
+              verbs:
+                - get
+                - list
+                - watch
+          serviceAccountName: jobset-operator
       deployments:
         - name: jobset-operator
           spec:
@@ -424,18 +482,14 @@ spec:
                         drop: ["ALL"]
                     image: ${OPERATOR_IMAGE}
                     ports:
-                    - containerPort: 8443
-                      name: metrics
+                      - containerPort: 8443
+                        name: metrics
                     command:
-                    - jobset-operator
+                      - jobset-operator
                     args:
-                    - "operator"
+                      - "operator"
                     imagePullPolicy: Always
                     env:
-                      - name: WATCH_NAMESPACE
-                        valueFrom:
-                          fieldRef:
-                            fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: POD_NAME
                         valueFrom:
                           fieldRef:
@@ -447,10 +501,10 @@ spec:
                       - name: OPERAND_IMAGE
                         value: ${OPERAND_IMAGE}
                     volumeMounts:
-                    - name: tmp
-                      mountPath: "/tmp"
+                      - name: tmp
+                        mountPath: "/tmp"
                 serviceAccountName: jobset-operator
                 volumes:
-                - name: tmp
-                  emptyDir: {}
+                  - name: tmp
+                    emptyDir: {}
     strategy: deployment

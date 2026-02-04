@@ -6,9 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/created-by: jobset
-    app.kubernetes.io/instance: validating-webhook-configuration
+    app.kubernetes.io/instance: jobset
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: validatingwebhookconfiguration
+    app.kubernetes.io/name: jobset
     app.kubernetes.io/part-of: jobset
   name: jobset-validating-webhook-configuration
 webhooks:
