@@ -9,9 +9,9 @@ metadata:
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: |
       event == "push"
-      && target_branch == "main"
+      && target_branch == "release-4.21"
       && (
-      ".tekton/jobset-operator-main-push.yaml".pathChanged()
+      ".tekton/jobset-operator-1-0-push.yaml".pathChanged()
       || "bindata/***".pathChanged()
       || "cmd/***".pathChanged()
       || "deploy/***".pathChanged()
@@ -24,10 +24,10 @@ metadata:
       )
   creationTimestamp:
   labels:
-    appstudio.openshift.io/application: jobset-operator-main
-    appstudio.openshift.io/component: jobset-operator-main
+    appstudio.openshift.io/application: jobset-operator-1-0
+    appstudio.openshift.io/component: jobset-operator-1-0
     pipelines.appstudio.openshift.io/type: build
-  name: jobset-operator-main-on-push
+  name: jobset-operator-1-0-on-push
   namespace: jobset-lws-pipeline-tenant
 spec:
   params:
@@ -36,7 +36,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-main:{{revision}}
+    value: quay.io/redhat-user-workloads/jobset-lws-pipeline-tenant/jobset-operator-1-0:{{revision}}
   - name: build-platforms
     value:
     - linux/x86_64
@@ -621,7 +621,7 @@ spec:
     - name: netrc
       optional: true
   taskRunTemplate:
-    serviceAccountName: build-pipeline-jobset-operator-main
+    serviceAccountName: build-pipeline-jobset-operator-1-0
   workspaces:
   - name: git-auth
     secret:
