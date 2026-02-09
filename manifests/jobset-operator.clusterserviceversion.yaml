@@ -8,7 +8,7 @@ metadata:
           "apiVersion": "operator.openshift.io/v1",
           "kind": "JobSetOperator",
           "metadata": {
-            "name": "cluster",
+            "name": "cluster"
           },
           "spec": {
             "logLevel": "Normal",
