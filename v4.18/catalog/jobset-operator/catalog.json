@@ -1,7 +1,7 @@
 {
     "schema": "olm.package",
     "name": "job-set",
-    "defaultChannel": "tech-preview-v0.1"
+    "defaultChannel": "stable-v1.0"
 }
 {
     "schema": "olm.channel",
@@ -10,6 +10,16 @@
     "entries": [
         {
             "name": "jobset-operator.v0.1.0"
+        }
+    ]
+}
+{
+    "schema": "olm.channel",
+    "name": "stable-v1.0",
+    "package": "job-set",
+    "entries": [
+        {
+            "name": "jobset-operator.v1.0.0"
         }
     ]
 }
@@ -138,6 +148,134 @@
         {
             "name": "jobset",
             "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:104e8a00fea252ffeb7fbef678be0b2f57c6e0cdde8dcae0134c2a4d681cb63b"
+        }
+    ]
+}
+{
+    "schema": "olm.bundle",
+    "name": "jobset-operator.v1.0.0",
+    "package": "job-set",
+    "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:2d1e71602bfa246c07a26964863bd7c982dec62c0b59eaf5af04b068b74a374a",
+    "properties": [
+        {
+            "type": "olm.gvk",
+            "value": {
+                "group": "operator.openshift.io",
+                "kind": "JobSetOperator",
+                "version": "v1"
+            }
+        },
+        {
+            "type": "olm.package",
+            "value": {
+                "packageName": "job-set",
+                "version": "1.0.0"
+            }
+        },
+        {
+            "type": "olm.csv.metadata",
+            "value": {
+                "annotations": {
+                    "alm-examples": "[\n  {\n    \"apiVersion\": \"operator.openshift.io/v1\",\n    \"kind\": \"JobSetOperator\",\n    \"metadata\": {\n      \"name\": \"cluster\"\n    },\n    \"spec\": {\n      \"logLevel\": \"Normal\",\n      \"managementState\": \"Managed\",\n      \"operatorLogLevel\": \"Normal\"\n    }\n  }\n]",
+                    "capabilities": "Basic Install",
+                    "categories": "OpenShift Optional",
+                    "console.openshift.io/operator-monitoring-default": "true",
+                    "createdAt": "2025-08-26",
+                    "description": "The JobSet Operator provides the ability to deploy a JobSet controller in OpenShift.\n",
+                    "features.operators.openshift.io/cnf": "false",
+                    "features.operators.openshift.io/cni": "false",
+                    "features.operators.openshift.io/csi": "false",
+                    "features.operators.openshift.io/disconnected": "true",
+                    "features.operators.openshift.io/fips-compliant": "true",
+                    "features.operators.openshift.io/proxy-aware": "false",
+                    "features.operators.openshift.io/tls-profiles": "false",
+                    "features.operators.openshift.io/token-auth-aws": "false",
+                    "features.operators.openshift.io/token-auth-azure": "false",
+                    "features.operators.openshift.io/token-auth-gcp": "false",
+                    "operatorframework.io/cluster-monitoring": "true",
+                    "operatorframework.io/suggested-namespace": "openshift-jobset-operator",
+                    "operators.openshift.io/valid-subscription": "[\"OpenShift Container Platform\", \"OpenShift Platform Plus\"]",
+                    "operators.operatorframework.io/builder": "operator-sdk-v1.34.2",
+                    "repository": "https://github.com/openshift/jobset-operator",
+                    "support": "Red Hat, Inc."
+                },
+                "apiServiceDefinitions": {},
+                "crdDescriptions": {
+                    "owned": [
+                        {
+                            "name": "jobsetoperators.operator.openshift.io",
+                            "version": "v1",
+                            "kind": "JobSetOperator",
+                            "displayName": "Job Set Operator"
+                        }
+                    ]
+                },
+                "description": "The JobSet Operator provides the ability to deploy a JobSet controller in OpenShift.\n",
+                "displayName": "Job Set Operator",
+                "installModes": [
+                    {
+                        "type": "OwnNamespace",
+                        "supported": true
+                    },
+                    {
+                        "type": "SingleNamespace",
+                        "supported": true
+                    },
+                    {
+                        "type": "MultiNamespace",
+                        "supported": false
+                    },
+                    {
+                        "type": "AllNamespaces",
+                        "supported": false
+                    }
+                ],
+                "keywords": [
+                    "jobset-operator",
+                    "jobset"
+                ],
+                "labels": {
+                    "operatorframework.io/arch.amd64": "supported",
+                    "operatorframework.io/arch.arm64": "supported",
+                    "operatorframework.io/arch.ppc64le": "supported",
+                    "operatorframework.io/arch.s390x": "supported"
+                },
+                "links": [
+                    {
+                        "name": "Source Code",
+                        "url": "https://github.com/openshift/kubernetes-sigs-jobset"
+                    },
+                    {
+                        "name": "Source Code",
+                        "url": "https://github.com/openshift/jobset-operator"
+                    }
+                ],
+                "maintainers": [
+                    {
+                        "name": "Red Hat",
+                        "email": "support@redhat.com"
+                    }
+                ],
+                "maturity": "alpha",
+                "minKubeVersion": "1.31.0",
+                "provider": {
+                    "name": "Red Hat, Inc."
+                }
+            }
+        }
+    ],
+    "relatedImages": [
+        {
+            "name": "jobset-operator",
+            "image": "registry.redhat.io/job-set/jobset-rhel9-operator@sha256:0a33e6ecc629cd881ac335024ffe96fd976aef61a833897ddab8e369f7e35143"
+        },
+        {
+            "name": "jobset",
+            "image": "registry.redhat.io/job-set/jobset-rhel9@sha256:8a0ce916ed17d4244f97ee967d341532365cbab4b4287639509dee914f50c8a1"
+        },
+        {
+            "name": "",
+            "image": "registry.redhat.io/job-set/jobset-operator-bundle@sha256:2d1e71602bfa246c07a26964863bd7c982dec62c0b59eaf5af04b068b74a374a"
         }
     ]
 }
