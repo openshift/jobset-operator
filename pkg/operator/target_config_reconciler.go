@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -128,6 +129,14 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 		}
 		return fmt.Errorf("please make sure that cert-manager is installed on your cluster")
 	}
+	serverVersion, err := t.discoveryClient.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("could not fetch server version: %v", err)
+	}
+	parsedServerVersion, err := version.ParseSemantic(serverVersion.GitVersion)
+	if err != nil {
+		return fmt.Errorf("could not parse server version: %v", err)
+	}
 
 	jobSetOperator, err := t.jobSetOperatorsLister.Get(operatorclient.OperatorConfigName)
 	if err != nil {
@@ -178,7 +187,7 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 	if err != nil {
 		return err
 	}
-	_, _, err = t.manageCRD(ctx, ownerReference)
+	_, _, err = t.manageCRD(ctx, ownerReference, parsedServerVersion)
 	if err != nil {
 		return err
 	}
@@ -341,7 +350,7 @@ func (t *TargetConfigReconciler) manageMutatingWebhook(ctx context.Context, owne
 	return resourceapply.ApplyMutatingWebhookConfigurationImproved(ctx, t.kubeClient.AdmissionregistrationV1(), t.eventRecorder, mutatingWebhook, t.resourceCache)
 }
 
-func (t *TargetConfigReconciler) manageCRD(ctx context.Context, ownerReference metav1.OwnerReference) (*apiextensionsv1.CustomResourceDefinition, bool, error) {
+func (t *TargetConfigReconciler) manageCRD(ctx context.Context, ownerReference metav1.OwnerReference, serverVersion *version.Version) (*apiextensionsv1.CustomResourceDefinition, bool, error) {
 	crd := resourceread.ReadCustomResourceDefinitionV1OrDie(bindata.MustAsset("assets/jobset-controller-generated/apiextensions.k8s.io_v1_customresourcedefinition_jobsets.jobset.x-k8s.io.yaml"))
 	if crd.Spec.Conversion != nil && crd.Spec.Conversion.Webhook != nil && crd.Spec.Conversion.Webhook.ClientConfig != nil && crd.Spec.Conversion.Webhook.ClientConfig.Service != nil {
 		crd.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = t.operatorNamespace
@@ -363,8 +372,25 @@ func (t *TargetConfigReconciler) manageCRD(ctx context.Context, ownerReference m
 			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = currentCRD.Spec.Conversion.Webhook.ClientConfig.CABundle
 		}
 	}
+	customCRDfixes(crd, serverVersion)
 
 	return resourceapply.ApplyCustomResourceDefinitionV1(ctx, t.apiextensionsClient.ApiextensionsV1(), t.eventRecorder, crd)
+}
+
+func customCRDfixes(crd *apiextensionsv1.CustomResourceDefinition, serverVersion *version.Version) {
+	if serverVersion.Major() == 1 && serverVersion.Minor() <= 31 {
+		for _, crdVersion := range crd.Spec.Versions {
+			if crdVersion.Name == "v1alpha2" {
+				validations := crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties["volumeClaimPolicies"].Items.Schema.XValidations
+				for i, validation := range validations {
+					if validation.Message == "namespace cannot be set for VolumeClaimPolicies templates" {
+						// 1.31 apiserver reports: compilation failed: ERROR: <input>:1:27: undefined field 'namespace'
+						validations[i].Rule = "self.templates.all(t, !has(t.metadata.__namespace__) || size(t.metadata.__namespace__) == 0)"
+					}
+				}
+			}
+		}
+	}
 }
 
 func (t *TargetConfigReconciler) managePrometheusRole(ctx context.Context, ownerReference metav1.OwnerReference) (*rbacv1.Role, bool, error) {
