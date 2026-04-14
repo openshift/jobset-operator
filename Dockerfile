@@ -4,7 +4,7 @@ COPY . .
 
 RUN make build --warn-undefined-variables
 
-FROM registry.redhat.io/rhel9-4-els/rhel-minimal:9.4-1775695983
+FROM registry.redhat.io/rhel9-4-els/rhel-minimal:9.4-1776143477
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/jobset-operator /usr/bin/
 RUN mkdir /licenses
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/LICENSE /licenses/.
