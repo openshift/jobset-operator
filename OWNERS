@@ -1,7 +1,5 @@
 reviewers:
-  - atiratree
-  - ardaguclu
+  - control-plane-approvers
 approvers:
-  - atiratree
-  - ardaguclu
+  - control-plane-approvers
 component: "jobset-operator"
