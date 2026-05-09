@@ -2,7 +2,7 @@ FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.24 as bui
 WORKDIR /go/src/github.com/openshift/jobset-operator
 COPY . .
 
-ARG OPERAND_IMAGE=registry.redhat.io/job-set/jobset-rhel9@sha256:e428894de0717e9d20c199b5c5343c00e3672a445bd368bab9c9be685e79d063
+ARG OPERAND_IMAGE=registry.redhat.io/job-set/jobset-rhel9@sha256:73435d4b0ca0facf0cb25193f1b3260f27217d6bbf47a57e5a92117defb9147e
 ARG REPLACED_OPERAND_IMG=\${OPERAND_IMAGE}
 
 # Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERAND_IMAGE build argument.
