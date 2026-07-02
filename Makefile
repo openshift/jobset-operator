@@ -49,7 +49,7 @@ test-e2e: ginkgo
 
 test-e2e-operand: ginkgo
 	RUN_OPERAND_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
-.PHONY: test-e2e
+.PHONY: test-e2e-operand
 
 regen-crd:
 	go build -o _output/tools/bin/controller-gen ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen
