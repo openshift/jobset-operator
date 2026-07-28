@@ -6,7 +6,7 @@ TECH_PREVIEW_VERSIONS[v4.19]="true"
 TECH_PREVIEW_VERSIONS[v4.20]="true"
 TECH_PREVIEW_VERSIONS[v4.21]="true"
 
-for OCP_VERSION in  v4.18 v4.19 v4.20 v4.21 v4.22; do
+for OCP_VERSION in  v4.18 v4.19 v4.20 v4.21 v4.22 v4.23 v5.0; do
     echo "OCP_VERSION: ${OCP_VERSION}"
     opm alpha render-template semver $OCP_VERSION/catalog-template.yaml --migrate-level=bundle-object-to-csv-metadata > $OCP_VERSION/catalog/jobset-operator/catalog.json
     if [[ "${TECH_PREVIEW_VERSIONS[${OCP_VERSION}]}" == "true" ]]; then
