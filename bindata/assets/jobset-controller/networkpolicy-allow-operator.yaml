@@ -1,0 +1,34 @@
+# Allow network traffic for the jobset-operator pod:
+# - Ingress: metrics scrape from platform monitoring on port 8443
+# - Egress: all (for DNS, API server, and other outbound traffic)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jobset-allow-operator
+  namespace: openshift-jobset-operator
+spec:
+  podSelector:
+    matchLabels:
+      name: jobset-operator
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow metrics from OpenShift monitoring namespaces
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              openshift.io/cluster-monitoring: "true"
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-user-workload-monitoring
+      ports:
+        - protocol: TCP
+          port: 8443
+  egress:
+    # Allow all egress for DNS, API server, etc.
+    # API address and port are not known at manifest time.
+    - {}
