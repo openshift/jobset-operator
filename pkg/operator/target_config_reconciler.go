@@ -9,6 +9,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -87,6 +88,8 @@ func NewTargetConfigReconciler(targetImagePullSpec, operatorNamespace string, op
 		kubeInformersForNamespaces.InformersFor(operatorNamespace).Apps().V1().Deployments().Informer(),
 		kubeInformersForNamespaces.InformersFor(operatorNamespace).Core().V1().ConfigMaps().Informer(),
 		kubeInformersForNamespaces.InformersFor(operatorNamespace).Core().V1().Secrets().Informer(),
+		// watch for addition/deletion/modification
+		kubeInformersForNamespaces.InformersFor(operatorNamespace).Networking().V1().NetworkPolicies().Informer(),
 	).
 		ResyncEvery(time.Minute*5).
 		WithSyncDegradedOnError(jobSetOperatorClient).
@@ -151,6 +154,12 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 	}
 
 	specAnnotations := make(map[string]string)
+
+	// NetworkPolicy is static (no runtime dependencies), so apply it early.
+	_, _, err = t.manageNetworkPolicyOperandAllow(ctx, ownerReference)
+	if err != nil {
+		return err
+	}
 
 	_, _, err = t.manageWebhookService(ctx, ownerReference)
 	if err != nil {
@@ -226,6 +235,16 @@ func (t *TargetConfigReconciler) sync(ctx context.Context, syncCtx factory.SyncC
 			Reason: "AsExpected",
 		}))
 	return err
+}
+
+func (t *TargetConfigReconciler) manageNetworkPolicyOperandAllow(ctx context.Context, ownerReference metav1.OwnerReference) (*networkingv1.NetworkPolicy, bool, error) {
+	required := resourceread.ReadNetworkPolicyV1OrDie(bindata.MustAsset("assets/jobset-controller/allow-operand-networkpolicy.yaml"))
+	required.Namespace = t.operatorNamespace
+	required.OwnerReferences = []metav1.OwnerReference{
+		ownerReference,
+	}
+
+	return resourceapply.ApplyNetworkPolicy(ctx, t.kubeClient.NetworkingV1(), t.eventRecorder, required, t.resourceCache)
 }
 
 func (t *TargetConfigReconciler) manageWebhookService(ctx context.Context, ownerReference metav1.OwnerReference) (*corev1.Service, bool, error) {
