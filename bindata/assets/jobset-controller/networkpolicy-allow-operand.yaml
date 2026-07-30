@@ -1,0 +1,28 @@
+# Network policy for the jobset-controller-manager (operand) pod.
+#
+# Ingress:
+# - Allow ingress on port 8443 (metrics) for Prometheus scraping.
+# - Allow ingress on port 9443 (webhook) for API server admission requests.
+#
+# Egress:
+# - Allow all egress to support communication with the API server and DNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-operand
+  namespace: openshift-jobset-operator
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jobset
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8443
+    - protocol: TCP
+      port: 9443
+  egress:
+  - {}
+  policyTypes:
+  - Ingress
+  - Egress

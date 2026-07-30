@@ -9,8 +9,12 @@ import (
 	v1 "github.com/openshift/api/operator/v1"
 	operatorv1 "github.com/openshift/jobset-operator/pkg/apis/openshiftoperator/v1"
 
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
@@ -75,4 +79,91 @@ func GetPodCount(ctx context.Context, clients *TestClients, namespace, labelSele
 		return -1
 	}
 	return len(pods.Items)
+}
+
+func GetNetworkPolicy(ctx context.Context, clients *TestClients, namespace, name string) *networkingv1.NetworkPolicy {
+	policy, err := clients.KubeClient.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to get NetworkPolicy %s/%s", namespace, name)
+	return policy
+}
+
+func RequirePodSelectorLabel(policy *networkingv1.NetworkPolicy, key, value string) {
+	actual, ok := policy.Spec.PodSelector.MatchLabels[key]
+	gomega.Expect(ok).To(gomega.BeTrue(), "%s/%s: podSelector missing label %s", policy.Namespace, policy.Name, key)
+	gomega.Expect(actual).To(gomega.Equal(value), "%s/%s: podSelector label %s", policy.Namespace, policy.Name, key)
+}
+
+func RequireEmptyPodSelector(policy *networkingv1.NetworkPolicy) {
+	gomega.Expect(policy.Spec.PodSelector.MatchLabels).To(gomega.BeEmpty(),
+		"%s/%s: expected empty podSelector matchLabels", policy.Namespace, policy.Name)
+	gomega.Expect(policy.Spec.PodSelector.MatchExpressions).To(gomega.BeEmpty(),
+		"%s/%s: expected empty podSelector matchExpressions", policy.Namespace, policy.Name)
+}
+
+func RequireIngressPort(policy *networkingv1.NetworkPolicy, protocol corev1.Protocol, port int32) {
+	found := false
+	for _, rule := range policy.Spec.Ingress {
+		for _, p := range rule.Ports {
+			if p.Protocol != nil && *p.Protocol == protocol && p.Port != nil && p.Port.IntValue() == int(port) {
+				found = true
+				break
+			}
+			if p.Protocol == nil && protocol == corev1.ProtocolTCP && p.Port != nil && p.Port.IntValue() == int(port) {
+				found = true
+				break
+			}
+		}
+	}
+	gomega.Expect(found).To(gomega.BeTrue(), "%s/%s: expected ingress port %s/%d", policy.Namespace, policy.Name, protocol, port)
+}
+
+func RequireUnrestrictedEgress(policy *networkingv1.NetworkPolicy) {
+	gomega.Expect(policy.Spec.Egress).NotTo(gomega.BeEmpty(),
+		"%s/%s: expected at least one egress rule", policy.Namespace, policy.Name)
+	found := false
+	for _, rule := range policy.Spec.Egress {
+		if len(rule.Ports) == 0 && len(rule.To) == 0 {
+			found = true
+			break
+		}
+	}
+	gomega.Expect(found).To(gomega.BeTrue(),
+		"%s/%s: no unrestricted egress rule [{}] found", policy.Namespace, policy.Name)
+}
+
+func RestoreNetworkPolicy(ctx context.Context, clients *TestClients, expected *networkingv1.NetworkPolicy, timeout time.Duration) {
+	namespace := expected.Namespace
+	name := expected.Name
+	klog.Infof("Deleting NetworkPolicy %s/%s and waiting for restoration", namespace, name)
+	err := clients.KubeClient.NetworkingV1().NetworkPolicies(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to delete NetworkPolicy %s/%s", namespace, name)
+
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		current, err := clients.KubeClient.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		return equality.Semantic.DeepEqual(expected.Spec, current.Spec), nil
+	})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "timed out waiting for NetworkPolicy %s/%s to be restored", namespace, name)
+	klog.Infof("NetworkPolicy %s/%s restored after delete", namespace, name)
+}
+
+func MutateAndRestoreNetworkPolicy(ctx context.Context, clients *TestClients, namespace, name string, timeout time.Duration) {
+	original := GetNetworkPolicy(ctx, clients, namespace, name)
+	klog.Infof("Mutating NetworkPolicy %s/%s and waiting for reconciliation", namespace, name)
+
+	patch := []byte(`{"spec":{"podSelector":{"matchLabels":{"np-reconcile":"mutated"}}}}`)
+	_, err := clients.KubeClient.NetworkingV1().NetworkPolicies(namespace).Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to patch NetworkPolicy %s/%s", namespace, name)
+
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		current, err := clients.KubeClient.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		return equality.Semantic.DeepEqual(original.Spec, current.Spec), nil
+	})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "timed out waiting for NetworkPolicy %s/%s to be restored after mutation", namespace, name)
+	klog.Infof("NetworkPolicy %s/%s restored after mutation", namespace, name)
 }
