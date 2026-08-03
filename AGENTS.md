@@ -754,7 +754,7 @@ These are specific mistakes AI agents frequently make in this codebase:
 
 ## Tech Stack
 
-- **Go 1.25+** - Check `go.mod` for the exact version required
+- **Go 1.26+** - Check `go.mod` for the exact version required
 - **Kubernetes client-go** - Standard Kubernetes client library
 - **OpenShift library-go** - Controller factory, resourceapply, v1helpers, operators
 - **OpenShift api** - `operator.openshift.io/v1` for JobSetOperator CRD
@@ -873,7 +873,7 @@ CertManagerInjectCaAnnotation = "cert-manager.io/inject-ca-from"
 ## Version Information
 
 **Current Versions** (from README.md):
-- Operator 1.0.0: JobSet 0.11.0, OCP 4.18-4.20, k8s 1.35, Go 1.25
+- Operator 1.0.0: JobSet 0.11.0, OCP 4.18-4.23, 5.0, k8s 1.36, Go 1.26
 
 **Tracking**:
 - `operand-git-ref` file: Upstream JobSet version/commit
