@@ -8,7 +8,7 @@ The JobSet Operator provides the ability to deploy a
 | jobset operator version | jobset version | ocp version | k8s version | golang |
 |-------------------------|----------------|-------------|-------------|--------|
 | 0.1.0                   | 0.9.1          | 4.18-4.20   | 1.33        | 1.24   |
-| 1.0.0                   | 0.11.0         | 4.18-5.0    | 1.35        | 1.25   |
+| 1.0.0                   | 0.11.0         | 4.18-4.23, 5.0 | 1.36     | 1.26   |
 
 ## Deploy the Operator
 

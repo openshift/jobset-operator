@@ -212,7 +212,7 @@ This section provides detailed guidance for local development, building, deployi
 
 #### Required Tools
 
-- **Go 1.25+**: [Installation guide](https://go.dev/doc/install)
+- **Go 1.26+**: [Installation guide](https://go.dev/doc/install)
 - **Podman or Docker**: For building container images
 - **oc CLI**: OpenShift command-line tool
 - **Access to an OpenShift cluster**: 
@@ -231,7 +231,7 @@ This section provides detailed guidance for local development, building, deployi
 
 ```bash
 # Check Go version
-go version  # Should be 1.25 or later
+go version  # Should be 1.26 or later
 
 # Check cluster access
 oc version
