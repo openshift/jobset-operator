@@ -29,3 +29,7 @@ go.work.sum
 # Temp files
 _tmp
 _output
+
+# OTE test binaries
+/jobset-operator-tests-ext
+/jobset-operator-tests-ext.gz
