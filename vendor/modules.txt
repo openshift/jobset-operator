@@ -158,8 +158,8 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/pprof v0.0.0-20250403155104-27863c87afa6
-## explicit; go 1.23
+# github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
+## explicit; go 1.24.0
 github.com/google/pprof/profile
 # github.com/google/uuid v1.6.0
 ## explicit
@@ -200,8 +200,8 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/onsi/ginkgo/v2 v2.27.4
-## explicit; go 1.23.0
+# github.com/onsi/ginkgo/v2 v2.27.4 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20260424201627-4d4cc33d669d
+## explicit; go 1.24.0
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
 github.com/onsi/ginkgo/v2/formatter
@@ -237,6 +237,22 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
+# github.com/openshift-eng/openshift-tests-extension v0.0.0-20260707142426-572a3e9deb7a
+## explicit; go 1.23.0
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd/cmdimages
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd/cmdinfo
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd/cmdlist
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd/cmdrun
+github.com/openshift-eng/openshift-tests-extension/pkg/cmd/cmdupdate
+github.com/openshift-eng/openshift-tests-extension/pkg/dbtime
+github.com/openshift-eng/openshift-tests-extension/pkg/extension
+github.com/openshift-eng/openshift-tests-extension/pkg/extension/extensiontests
+github.com/openshift-eng/openshift-tests-extension/pkg/flags
+github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo
+github.com/openshift-eng/openshift-tests-extension/pkg/junit
+github.com/openshift-eng/openshift-tests-extension/pkg/util/sets
+github.com/openshift-eng/openshift-tests-extension/pkg/version
 # github.com/openshift/api v0.0.0-20260731195344-05ea89db4588
 ## explicit; go 1.26.0
 github.com/openshift/api
@@ -1469,6 +1485,7 @@ k8s.io/code-generator/pkg/util
 k8s.io/code-generator/third_party/forked/golang/reflect
 # k8s.io/component-base v0.36.2
 ## explicit; go 1.26.0
+k8s.io/component-base/cli
 k8s.io/component-base/cli/flag
 k8s.io/component-base/compatibility
 k8s.io/component-base/featuregate
@@ -1627,3 +1644,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20260424201627-4d4cc33d669d
