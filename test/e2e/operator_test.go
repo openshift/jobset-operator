@@ -25,11 +25,11 @@ func TestExtended(t *testing.T) {
 		testOperandPodRecovery(t, ctx, kubeClient)
 	})
 
-	t.Run("should allow manual scaling when managementState is Unmanaged", func(t *testing.T) {
-		testUnmanagedScaling(t, ctx, kubeClient)
+	t.Run("should not reconcile when managementState is Unmanaged", func(t *testing.T) {
+		testUnmanagedState(t, ctx, kubeClient)
 	})
 
-	t.Run("should keep operand scaled when managementState is Removed", func(t *testing.T) {
-		testRemovedStateScaling(t, ctx, kubeClient)
+	t.Run("should not reconcile when managementState is Removed", func(t *testing.T) {
+		testRemovedState(t, ctx, kubeClient)
 	})
 }
