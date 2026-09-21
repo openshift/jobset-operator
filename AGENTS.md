@@ -872,8 +872,8 @@ CertManagerInjectCaAnnotation = "cert-manager.io/inject-ca-from"
 
 ## Version Information
 
-**Current Versions** (from README.md):
-- Operator 1.0.0: JobSet 0.11.0, OCP 4.18-4.23, 5.0, k8s 1.36, Go 1.26
+**Current Versions**:
+- See README.md
 
 **Tracking**:
 - `operand-git-ref` file: Upstream JobSet version/commit
