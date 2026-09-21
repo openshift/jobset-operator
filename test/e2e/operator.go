@@ -1,11 +1,16 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,14 +19,19 @@ import (
 	o "github.com/onsi/gomega"
 
 	v1 "github.com/openshift/api/operator/v1"
+	"github.com/openshift/jobset-operator/bindata"
 	"github.com/openshift/jobset-operator/deploy"
 	operatorv1 "github.com/openshift/jobset-operator/pkg/apis/openshiftoperator/v1"
 	jobsetoperatorv1clientset "github.com/openshift/jobset-operator/pkg/generated/clientset/versioned/typed/openshiftoperator/v1"
+	"github.com/openshift/library-go/pkg/operator/resource/resourceread"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -34,11 +44,17 @@ const (
 	oteOperatorNamespace = "openshift-jobset-operator"
 	oteOperandLabel      = "control-plane=controller-manager"
 	oteOperandName       = "jobset-controller-manager"
+	oteNetworkPolicyName = "jobset-operand"
 
 	certManagerURL = "https://github.com/cert-manager/cert-manager/releases/download/v1.17.0/cert-manager.yaml"
 )
 
 var deployTmpDir string
+
+var jobSetGVR = schema.GroupVersionResource{Group: "jobset.x-k8s.io", Version: "v1alpha2", Resource: "jobsets"}
+
+//go:embed testdata/test-jobset-networkpolicy-webhook-traffic.yaml
+var testJobSetNetworkPolicyWebhookTrafficYAML string
 
 var _ = g.Describe("[sig-apps][Operator][Serial] JobSet Operator", g.Ordered, func() {
 	var (
@@ -73,6 +89,108 @@ var _ = g.Describe("[sig-apps][Operator][Serial] JobSet Operator", g.Ordered, fu
 	g.It("should not reconcile when managementState is Removed [Suite:openshift/jobset-operator/operator/serial]", func() {
 		testRemovedState(g.GinkgoTB(), ctx, kubeClient)
 	})
+
+	g.It("should create NetworkPolicy with correct spec [Suite:openshift/jobset-operator/operator/serial]", func() {
+		expectNetworkPolicyValid(ctx, kubeClient, "NetworkPolicy should exist with correct spec")
+	})
+
+	g.It("should reconcile NetworkPolicy after mutation [Suite:openshift/jobset-operator/operator/serial]", func() {
+		netpolClient := kubeClient.NetworkingV1().NetworkPolicies(oteOperatorNamespace)
+
+		klog.Infof("Patching webhook port from 9443 to 1234")
+		patch := []byte(`[{"op": "replace", "path": "/spec/ingress/0/ports/0/port", "value": 1234}]`)
+		_, err := netpolClient.Patch(ctx, oteNetworkPolicyName, types.JSONPatchType, patch, metav1.PatchOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to patch webhook port")
+
+		expectNetworkPolicyValid(ctx, kubeClient, "operator should revert webhook port mutation")
+
+		klog.Infof("Tampering monitoring namespace selector")
+		// Get the NetworkPolicy to find the monitoring ingress rule index
+		np, err := netpolClient.Get(ctx, oteNetworkPolicyName, metav1.GetOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to get NetworkPolicy")
+		monitoringIdx := len(np.Spec.Ingress) - 1 // Last ingress rule is monitoring
+		patch = []byte(fmt.Sprintf(`[{"op": "replace", "path": "/spec/ingress/%d/from/0/namespaceSelector/matchLabels", "value": {"kubernetes.io/metadata.name": "fake-namespace"}}]`, monitoringIdx))
+		_, err = netpolClient.Patch(ctx, oteNetworkPolicyName, types.JSONPatchType, patch, metav1.PatchOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to patch monitoring selector")
+
+		expectNetworkPolicyValid(ctx, kubeClient, "operator should revert monitoring selector mutation")
+
+		klog.Infof("Removing all egress rules")
+		patch = []byte(`[{"op": "replace", "path": "/spec/egress", "value": []}]`)
+		_, err = netpolClient.Patch(ctx, oteNetworkPolicyName, types.JSONPatchType, patch, metav1.PatchOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to patch egress")
+
+		expectNetworkPolicyValid(ctx, kubeClient, "operator should restore egress rules")
+	})
+
+	g.It("should recreate NetworkPolicy after deletion [Suite:openshift/jobset-operator/operator/serial]", func() {
+		netpolClient := kubeClient.NetworkingV1().NetworkPolicies(oteOperatorNamespace)
+
+		klog.Infof("Deleting NetworkPolicy %s", oteNetworkPolicyName)
+		err := netpolClient.Delete(ctx, oteNetworkPolicyName, metav1.DeleteOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to delete NetworkPolicy")
+
+		expectNetworkPolicyValid(ctx, kubeClient, "operator should recreate NetworkPolicy after deletion")
+	})
+
+	g.It("should allow webhook traffic on port 9443 from operator namespace and block unlisted port [Suite:openshift/jobset-operator/operator/serial]", func() {
+		operandPod, err := getOperandPod(ctx, kubeClient)
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to get operand pod")
+
+		// Port 9443 allows all ingress (kube-apiserver uses host network; cannot restrict by namespace).
+		// Verify it is reachable, and that an unlisted port is blocked from the same source.
+		webhookURL := fmt.Sprintf("https://%s:9443", operandPod.Status.PodIP)
+		code, err := runCurlPod(ctx, kubeClient, oteOperatorNamespace, webhookURL)
+		o.Expect(err).NotTo(o.HaveOccurred(), "curl on port 9443 failed")
+		o.Expect(code).To(o.Equal(strconv.Itoa(http.StatusNotFound)), "webhook port 9443 should return HTTP 404 from the operator namespace")
+
+		blockedURL := fmt.Sprintf("https://%s:1234", operandPod.Status.PodIP)
+		code, err = runCurlPod(ctx, kubeClient, oteOperatorNamespace, blockedURL)
+		o.Expect(err).NotTo(o.HaveOccurred(), "curl on unlisted port failed")
+		o.Expect(code).To(o.Equal("000"), "unlisted port 1234 should be blocked from the operator namespace")
+	})
+
+	g.It("should allow webhook via kube-apiserver and operand egress to API server [Suite:openshift/jobset-operator/operator/serial]", func() {
+		// Test both webhook functionality and operand egress to API server.
+		// If egress to the API server is blocked, the webhook endpoint would fail to validate JobSets.
+		// Successful JobSet creation proves the webhook can communicate with the API server.
+		klog.Infof("Creating JobSet to test webhook via kube-apiserver (validates egress)")
+		jobSetClient := GetDynamicClient().Resource(jobSetGVR).Namespace(metav1.NamespaceDefault)
+		jobset, err := jobSetClient.Create(ctx, resourceread.ReadUnstructuredOrDie([]byte(testJobSetNetworkPolicyWebhookTrafficYAML)), metav1.CreateOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "webhook rejected JobSet creation (egress to API server may be blocked)")
+		defer func() {
+			err := jobSetClient.Delete(ctx, jobset.GetName(), metav1.DeleteOptions{})
+			o.Expect(err).NotTo(o.HaveOccurred(), "failed to delete webhook test JobSet")
+		}()
+		klog.Infof("JobSet %s created successfully via webhook (confirms egress to API server)", jobset.GetName())
+	})
+
+	g.It("should allow metrics from monitoring and block from random namespace [Suite:openshift/jobset-operator/operator/serial]", func() {
+		operandPod, err := getOperandPod(ctx, kubeClient)
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to get operand pod")
+		metricsURL := fmt.Sprintf("https://%s:8443", operandPod.Status.PodIP)
+
+		// Create a random namespace (no cluster-monitoring label) to test that it is blocked.
+		blockNS, err := kubeClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "test-netpol-e2e-"},
+		}, metav1.CreateOptions{})
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to create test namespace")
+		defer func() {
+			err := kubeClient.CoreV1().Namespaces().Delete(ctx, blockNS.Name, metav1.DeleteOptions{})
+			o.Expect(err).NotTo(o.HaveOccurred(), "failed to delete test namespace")
+		}()
+
+		// openshift-monitoring carries the cluster-monitoring label and must be allowed.
+		code, err := runCurlPod(ctx, kubeClient, "openshift-monitoring", metricsURL)
+		o.Expect(err).NotTo(o.HaveOccurred(), "curl from openshift-monitoring failed")
+		o.Expect(code).To(o.Equal(strconv.Itoa(http.StatusNotFound)), "metrics port 8443 should return HTTP 404 from openshift-monitoring")
+
+		// The unlabelled random namespace must be blocked.
+		code, err = runCurlPod(ctx, kubeClient, blockNS.Name, metricsURL)
+		o.Expect(err).NotTo(o.HaveOccurred(), "curl from random namespace failed")
+		o.Expect(code).To(o.Equal("000"), "metrics port 8443 should be blocked from random namespace")
+	})
+
 })
 
 func setupOperator(t testing.TB) (context.Context, context.CancelFunc, *k8sclient.Clientset, error) {
@@ -189,7 +307,8 @@ func setupOperator(t testing.TB) (context.Context, context.CancelFunc, *k8sclien
 
 func teardownOperator() {
 	if deployTmpDir != "" {
-		_ = os.RemoveAll(deployTmpDir)
+		err := os.RemoveAll(deployTmpDir)
+		o.Expect(err).NotTo(o.HaveOccurred(), "failed to remove temporary deploy manifests")
 	}
 }
 
@@ -297,6 +416,7 @@ func testUnmanagedState(t testing.TB, ctx context.Context, kubeClient *k8sclient
 	defer func() {
 		setManagementState(t, ctx, jobSetOperatorClient, jobsetOperator, originalState)
 		waitForOperatorAvailable(t, ctx, jobSetOperatorClient, genBaseline)
+		expectNetworkPolicyValid(ctx, kubeClient, "operator should restore the NetworkPolicy after restoring management state")
 	}()
 
 	setManagementState(t, ctx, jobSetOperatorClient, jobsetOperator, v1.Unmanaged)
@@ -304,6 +424,7 @@ func testUnmanagedState(t testing.TB, ctx context.Context, kubeClient *k8sclient
 	time.Sleep(1 * time.Second)
 	genBaseline = operandDeploymentGeneration(jobsetOperator.Status.Generations)
 	verifyOperatorDoesNotReconcile(t, ctx, kubeClient)
+	verifyNetworkPolicyNotReconciled(t, ctx, kubeClient)
 }
 
 func testRemovedState(t testing.TB, ctx context.Context, kubeClient *k8sclient.Clientset) {
@@ -320,6 +441,7 @@ func testRemovedState(t testing.TB, ctx context.Context, kubeClient *k8sclient.C
 		newctx := context.TODO()
 		setManagementState(t, newctx, jobSetOperatorClient, jobsetOperator, originalState)
 		waitForOperatorAvailable(t, newctx, jobSetOperatorClient, genBaseline)
+		expectNetworkPolicyValid(newctx, kubeClient, "operator should restore the NetworkPolicy after restoring management state")
 	}()
 
 	setManagementState(t, ctx, jobSetOperatorClient, jobsetOperator, v1.Removed)
@@ -327,6 +449,7 @@ func testRemovedState(t testing.TB, ctx context.Context, kubeClient *k8sclient.C
 	time.Sleep(1 * time.Second)
 	genBaseline = operandDeploymentGeneration(jobsetOperator.Status.Generations)
 	verifyOperatorDoesNotReconcile(t, ctx, kubeClient)
+	verifyNetworkPolicyNotReconciled(t, ctx, kubeClient)
 }
 
 func getOperatorState(ctx context.Context, jobSetOperatorClient jobsetoperatorv1clientset.JobSetOperatorInterface) (*operatorv1.JobSetOperator, v1.ManagementState, error) {
@@ -408,6 +531,32 @@ func verifyOperatorDoesNotReconcile(t testing.TB, ctx context.Context, kubeClien
 		"operator should not reconcile deployment when not managed")
 }
 
+// verifyNetworkPolicyNotReconciled deletes the NetworkPolicy and confirms that the operator does
+// not recreate it while the management state prevents reconciliation.
+func verifyNetworkPolicyNotReconciled(t testing.TB, ctx context.Context, kubeClient *k8sclient.Clientset) {
+	t.Helper()
+	netpolClient := kubeClient.NetworkingV1().NetworkPolicies(oteOperatorNamespace)
+
+	klog.Infof("Deleting NetworkPolicy %s to verify operator does not reconcile it", oteNetworkPolicyName)
+	err := netpolClient.Delete(ctx, oteNetworkPolicyName, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		t.Fatalf("Failed to delete NetworkPolicy: %v", err)
+	}
+
+	// The operator should not recreate the NetworkPolicy while in Unmanaged/Removed state.
+	o.ConsistentlyWithOffset(1, func() error {
+		_, getErr := netpolClient.Get(ctx, oteNetworkPolicyName, metav1.GetOptions{})
+		if k8serrors.IsNotFound(getErr) {
+			return nil // expected: still absent
+		}
+		if getErr != nil {
+			return getErr
+		}
+		return fmt.Errorf("NetworkPolicy was unexpectedly recreated by the operator")
+	}, 5*time.Second, 2*time.Second).Should(o.Succeed(),
+		"operator should not recreate NetworkPolicy when management state prevents reconciliation")
+}
+
 // waitForOperatorAvailable waits for the operator to become Available with a fresh reconciliation,
 // by checking that status.Generations has advanced beyond the supplied baseline.
 func waitForOperatorAvailable(t testing.TB, ctx context.Context, jobSetOperatorClient jobsetoperatorv1clientset.JobSetOperatorInterface, genBefore int64) {
@@ -438,4 +587,124 @@ func operandDeploymentGeneration(generations []v1.GenerationStatus) int64 {
 		}
 	}
 	return 0
+}
+
+// expectNetworkPolicyValid waits for the NetworkPolicy to exist and match the expected shape.
+func expectNetworkPolicyValid(ctx context.Context, kubeClient *k8sclient.Clientset, msg string) {
+	expected := resourceread.ReadNetworkPolicyV1OrDie(
+		bindata.MustAsset("assets/jobset-controller/allow-operand-networkpolicy.yaml"),
+	)
+
+	o.Eventually(func() (*networkingv1.NetworkPolicy, error) {
+		return kubeClient.NetworkingV1().NetworkPolicies(oteOperatorNamespace).Get(
+			ctx, oteNetworkPolicyName, metav1.GetOptions{})
+	}, 1*time.Minute, 2*time.Second).Should(o.And(
+		o.HaveField("Spec", o.Equal(expected.Spec)),
+		o.HaveField("OwnerReferences", o.ContainElement(o.And(
+			o.HaveField("APIVersion", "operator.openshift.io/v1"),
+			o.HaveField("Kind", "JobSetOperator"),
+			o.HaveField("Name", "cluster"),
+		))),
+	), msg)
+}
+
+// getOperandPod returns a running operand pod with an assigned IP
+func getOperandPod(ctx context.Context, kubeClient *k8sclient.Clientset) (*corev1.Pod, error) {
+	pods, err := kubeClient.CoreV1().Pods(oteOperatorNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=jobset,control-plane=controller-manager",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list operand pods: %v", err)
+	}
+	for i := range pods.Items {
+		p := &pods.Items[i]
+		if p.DeletionTimestamp == nil && p.Status.Phase == corev1.PodRunning && p.Status.PodIP != "" {
+			return p, nil
+		}
+	}
+	return nil, fmt.Errorf("no operand pod found in Running state with an assigned IP")
+}
+
+// runCurlPod creates a curl test pod using client-go and returns the HTTP status code string
+// written to stdout by curl (e.g. "200", "000" for a blocked/timed-out connection).
+// The pod is deleted automatically when the function returns.
+func runCurlPod(ctx context.Context, kubeClient *k8sclient.Clientset, namespace, targetURL string) (code string, retErr error) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "netpol-curl-test-",
+			Namespace:    namespace,
+		},
+		Spec: corev1.PodSpec{
+			RestartPolicy: corev1.RestartPolicyNever,
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsNonRoot: ptr.To(true),
+				RunAsUser:    ptr.To(int64(1000)),
+				SeccompProfile: &corev1.SeccompProfile{
+					Type: corev1.SeccompProfileTypeRuntimeDefault,
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:  "curl",
+					Image: "curlimages/curl:8.13.0",
+					// -s: silent  -k: skip TLS verification  --connect-timeout: give up early when blocked
+					// -o /dev/null -w "%{http_code}": print only the HTTP status code to stdout.
+					// A NetworkPolicy drop will cause curl to time out and print "000".
+					Command: []string{
+						"curl", "-sk", "--connect-timeout", "5",
+						"-o", "/dev/null", "-w", "%{http_code}",
+						targetURL,
+					},
+					SecurityContext: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: ptr.To(false),
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{"ALL"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	created, err := kubeClient.CoreV1().Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create curl pod: %v", err)
+	}
+	defer func() {
+		deleteErr := kubeClient.CoreV1().Pods(namespace).Delete(ctx, created.Name,
+			metav1.DeleteOptions{GracePeriodSeconds: ptr.To(int64(0))})
+		if deleteErr != nil && !k8serrors.IsNotFound(deleteErr) && retErr == nil {
+			retErr = fmt.Errorf("failed to delete curl pod: %w", deleteErr)
+		}
+	}()
+
+	// Wait for the pod to reach a terminal phase (Succeeded or Failed).
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 90*time.Second, true,
+		func(ctx context.Context) (bool, error) {
+			p, getErr := kubeClient.CoreV1().Pods(namespace).Get(ctx, created.Name, metav1.GetOptions{})
+			if getErr != nil {
+				return false, getErr
+			}
+			return p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed, nil
+		})
+	if err != nil {
+		return "", fmt.Errorf("curl pod did not reach a terminal phase: %v", err)
+	}
+
+	// Retrieve the HTTP status code from the pod's log output.
+	logStream, err := kubeClient.CoreV1().Pods(namespace).GetLogs(created.Name, &corev1.PodLogOptions{}).Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to stream curl pod logs: %v", err)
+	}
+	defer func() {
+		if closeErr := logStream.Close(); closeErr != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to close curl pod log stream: %w", closeErr)
+		}
+	}()
+
+	var buf bytes.Buffer
+	if _, err = io.Copy(&buf, logStream); err != nil {
+		return "", fmt.Errorf("failed to read curl pod logs: %v", err)
+	}
+	return strings.TrimSpace(buf.String()), nil
 }
