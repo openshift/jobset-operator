@@ -1,11 +1,13 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.25-openshift-4.22 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.26-openshift-5.0 AS builder
 WORKDIR /go/src/github.com/openshift/jobset-operator
 COPY . .
 
-RUN make build --warn-undefined-variables
+RUN make build --warn-undefined-variables \
+    && gzip jobset-operator-tests-ext
 
-FROM registry.ci.openshift.org/ocp/4.22:base-rhel9
+FROM registry.ci.openshift.org/ocp/5.0:base-rhel9
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/jobset-operator /usr/bin/
+COPY --from=builder /go/src/github.com/openshift/jobset-operator/jobset-operator-tests-ext.gz /usr/bin/
 RUN mkdir /licenses
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/LICENSE /licenses/.
 
@@ -13,6 +15,8 @@ LABEL com.redhat.component="Job Set Operator"
 LABEL description="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit. It aims to offer a unified API for deploying HPC (e.g., MPI) and AI/ML training workloads (PyTorch, Jax, Tensorflow etc.) on Kubernetes."
 LABEL name="job-set/jobset-rhel9-operator"
 LABEL cpe="cpe:/a:redhat:job_set:1.0::el9"
+LABEL release="1.0.1"
+LABEL version="1.0.1"
 LABEL summary="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit."
 LABEL io.k8s.display-name="Job Set" \
       io.k8s.description="This is an operator to manage the Job Set" \

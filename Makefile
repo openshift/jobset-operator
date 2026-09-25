@@ -1,14 +1,14 @@
 all: build
 .PHONY: all
 
-SOURCE_GIT_TAG ?=$(shell git describe --long --tags --abbrev=7 --match 'v[0-9]*' || echo 'v1.0.0-$(SOURCE_GIT_COMMIT)')
+SOURCE_GIT_TAG ?=$(shell git describe --long --tags --abbrev=7 --match 'v[0-9]*' || echo 'v1.0.1-$(SOURCE_GIT_COMMIT)')
 SOURCE_GIT_COMMIT ?=$(shell git rev-parse --short "HEAD^{commit}" 2>/dev/null)
 
 # Use go.mod go version as a single source of truth of Ginkgo version. 
 GINKGO_VERSION ?= $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
 
 GOLANGCI_LINT = $(shell pwd)/_output/tools/bin/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.8.0
+GOLANGCI_LINT_VERSION ?= v2.10.0
 
 # OS_GIT_VERSION is populated by ART
 # If building out of the ART pipeline, fallback to SOURCE_GIT_TAG
@@ -34,17 +34,17 @@ IMAGE_REGISTRY :=registry.ci.openshift.org
 # $2 - image ref
 # $3 - Dockerfile path
 # $4 - context directory for image build
-$(call build-image,ocp-jobset-operator,$(IMAGE_REGISTRY)/ocp/4.20:jobset-operator, ./Dockerfile,.)
+$(call build-image,ocp-jobset-operator,$(IMAGE_REGISTRY)/ocp/5.0:jobset-operator, ./Dockerfile.ci,.)
 
-$(call verify-golang-versions,Dockerfile)
+$(call verify-golang-versions,Dockerfile.ci)
 
 GINKGO = $(shell pwd)/_output/tools/bin/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	test -s $(shell pwd)/_output/tools/bin/ginkgo || GOFLAGS=-mod=readonly GOBIN=$(shell pwd)/_output/tools/bin go install github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
 
-test-e2e: ginkgo
-	RUN_OPERATOR_TEST=true GINKGO=$(GINKGO) hack/e2e-test.sh
+test-e2e:
+	go test -v -timeout 30m ./test/e2e/...
 .PHONY: test-e2e
 
 test-e2e-operand: ginkgo

@@ -2,14 +2,14 @@ FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.25 as bui
 WORKDIR /go/src/github.com/openshift/jobset-operator
 COPY . .
 
-ARG OPERAND_IMAGE=registry.redhat.io/job-set/jobset-rhel9@sha256:2f448ef8b7a2018bfbd5273cfa43a76063d4a4fd7efd620ae2de1f918a6c044b
+ARG OPERAND_IMAGE=registry.redhat.io/job-set/jobset-rhel9@sha256:0c1a440f84a7994aa4e48a878ed334153600143fb4350c3719f310f082d7e257
 ARG REPLACED_OPERAND_IMG=\${OPERAND_IMAGE}
 
 # Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERAND_IMAGE build argument.
 RUN hack/replace-image.sh deploy $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 RUN hack/replace-image.sh manifests $REPLACED_OPERAND_IMG $OPERAND_IMAGE
 
-ARG OPERATOR_IMAGE=registry.redhat.io/job-set/jobset-rhel9-operator@sha256:326658d2e3f78820fc4fd0d1b940d0c4659e1736c0f0264da5cf83811db1bd08
+ARG OPERATOR_IMAGE=registry.redhat.io/job-set/jobset-rhel9-operator@sha256:7e9483f60f7b1329663c3055e81481fa0eb3a6863032014a254de873b72ce950
 ARG REPLACED_OPERATOR_IMG=\${OPERATOR_IMAGE}
 
 # Replace the operand image in deploy/05_deployment.yaml with the one specified by the OPERATOR_IMAGE build argument.
@@ -19,7 +19,7 @@ RUN hack/replace-image.sh manifests $REPLACED_OPERATOR_IMG $OPERATOR_IMAGE
 RUN mkdir licenses
 COPY LICENSE licenses/.
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:2a98ec380ad75004992b8538380a5003da64442f0a69237ed236859e023c71d0
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:984df0a2b8d9011d419b0ad260b25f6b74b7ce69ab0595b75522e30f8849f27f
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
 LABEL operators.operatorframework.io.bundle.manifests.v1=manifests/
@@ -39,8 +39,8 @@ LABEL description="JobSet is a Kubernetes-native API for managing a group of k8s
 LABEL distribution-scope="public"
 LABEL name="job-set/jobset-operator-bundle"
 LABEL cpe="cpe:/a:redhat:job_set:1.0::el9"
-LABEL release="1.0.0"
-LABEL version="1.0.0"
+LABEL release="1.0.1"
+LABEL version="1.0.1"
 LABEL url="https://github.com/openshift/jobset-operator"
 LABEL vendor="Red Hat, Inc."
 LABEL summary="JobSet is a Kubernetes-native API for managing a group of k8s Jobs as a unit."

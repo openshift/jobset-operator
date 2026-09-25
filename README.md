@@ -3,12 +3,49 @@
 The JobSet Operator provides the ability to deploy a
 [JobSet controller](https://github.com/openshift/kubernetes-sigs-jobset) in OpenShift.
 
+## Tests
+
+This repository is compatible with the [OpenShift Tests Extension (OTE)](https://github.com/openshift-eng/openshift-tests-extension) framework.
+
+### Building the test binary
+
+```bash
+make build
+```
+
+### Running test suites and tests
+
+```bash
+# Run a specific test suite or test
+./jobset-operator-tests-ext run-suite openshift/jobset-operator/operator/serial
+./jobset-operator-tests-ext run-test "test-name"
+
+# To run serial suites cases serially, use the following command:
+./jobset-operator-tests-ext run-suite openshift/jobset-operator/operator/serial -c 1
+
+# Run with JUnit output
+./jobset-operator-tests-ext run-suite openshift/jobset-operator/operator/serial --junit-path=/tmp/junit.xml
+./jobset-operator-tests-ext run-test "test-name" --junit-path=/tmp/junit.xml
+```
+
+### Listing available tests and suites
+
+```bash
+# List all test suites
+./jobset-operator-tests-ext list suites
+
+# List tests in a suite
+./jobset-operator-tests-ext list tests --suite=openshift/jobset-operator/operator/serial
+```
+
+For more information about the OTE framework, see the [openshift-tests-extension documentation](https://github.com/openshift-eng/openshift-tests-extension).
+
 ## Releases
 
-| jobset operator version | jobset version | ocp version | k8s version | golang |
-|-------------------------|----------------|-------------|-------------|--------|
-| 0.1.0                   | 0.9.1          | 4.18-4.20   | 1.33        | 1.24   |
-| 1.0.0                   | 0.11.0         | 4.18-5.0    | 1.35        | 1.25   |
+| jobset operator version | jobset version | ocp version    | k8s version | golang |
+|-------------------------|----------------|----------------|-------------|--------|
+| 0.1.0                   | 0.9.1          | 4.18-4.20      | 1.33        | 1.24   |
+| 1.0.x                   | 0.11.0         | 4.18-4.23, 5.0 | 1.36        | 1.26   |
 
 ## Deploy the Operator
 

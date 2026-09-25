@@ -39,7 +39,7 @@ metadata:
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: "openshift-jobset-operator"
     console.openshift.io/operator-monitoring-default: "true"
-  name: jobset-operator.v1.0.0
+  name: jobset-operator.v1.0.1
   namespace: openshift-jobset-operator
   labels:
     operatorframework.io/arch.amd64: supported
@@ -59,7 +59,7 @@ spec:
   installModes:
     - supported: true
       type: OwnNamespace
-    - supported: true
+    - supported: false
       type: SingleNamespace
     - supported: false
       type: MultiNamespace
@@ -83,7 +83,7 @@ spec:
       mediatype: image/png
   provider:
     name: Red Hat, Inc.
-  version: 1.0.0
+  version: 1.0.1
   relatedImages:
     - name: jobset
       image: ${OPERAND_IMAGE}
@@ -478,6 +478,8 @@ spec:
                 name: jobset-operator
             template:
               metadata:
+                annotations:
+                  openshift.io/required-scc: restricted-v2
                 labels:
                   name: jobset-operator
               spec:
@@ -501,6 +503,7 @@ spec:
                     args:
                       - "operator"
                     imagePullPolicy: Always
+                    terminationMessagePolicy: FallbackToLogsOnError
                     env:
                       - name: POD_NAME
                         valueFrom:

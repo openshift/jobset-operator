@@ -434,7 +434,7 @@ hack/update-jobset-controller-manifests.sh
 **Operator Image**:
 - Built from `Dockerfile.ci`
 - Specified in `deploy/12_deployment.yaml`
-- Example: `registry.ci.openshift.org/ocp/4.20:jobset-operator`
+- Example: `registry.ci.openshift.org/ocp/5.0:jobset-operator`
 
 **Operand Image**:
 - Built from OpenShift fork `openshift/kubernetes-sigs-jobset`
