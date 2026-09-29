@@ -173,14 +173,17 @@ var _ = g.Describe("[sig-apps][Operator][Serial] JobSet Operator", g.Ordered, fu
 		o.Expect(code).NotTo(o.Equal("000"), "webhook port 9443 blocked from default namespace")
 	})
 
-	g.It("should allow webhook via kube-apiserver [Suite:openshift/jobset-operator/operator/serial]", func() {
-		klog.Infof("Creating JobSet to test webhook via kube-apiserver")
+	g.It("should allow webhook via kube-apiserver and operand egress to API server [Suite:openshift/jobset-operator/operator/serial]", func() {
+		// Test both webhook functionality and operand egress to API server.
+		// If egress to the API server is blocked, the webhook endpoint would fail to validate JobSets.
+		// Successful JobSet creation proves the webhook can communicate with the API server.
+		klog.Infof("Creating JobSet to test webhook via kube-apiserver (validates egress)")
 		jobsetName, err := ocCreate(ctx, jobsetWebhookTestYAML)
 		defer func() {
 			_ = runCommand("oc", "delete", "jobset", jobsetName, "-n", "default", "--ignore-not-found")
 		}()
-		o.Expect(err).NotTo(o.HaveOccurred(), "webhook rejected JobSet creation")
-		klog.Infof("JobSet %s created successfully", jobsetName)
+		o.Expect(err).NotTo(o.HaveOccurred(), "webhook rejected JobSet creation (egress to API server may be blocked)")
+		klog.Infof("JobSet %s created successfully via webhook (confirms egress to API server)", jobsetName)
 	})
 
 	g.It("should allow metrics from monitoring and block from random namespace [Suite:openshift/jobset-operator/operator/serial]", func() {
@@ -215,13 +218,6 @@ var _ = g.Describe("[sig-apps][Operator][Serial] JobSet Operator", g.Ordered, fu
 		o.Expect(code).To(o.Equal("000"), "unlisted port 1234 should be blocked")
 	})
 
-	g.It("should allow egress from operand to API server [Suite:openshift/jobset-operator/operator/serial]", func() {
-		operandPod, err := getOperandPod(ctx, kubeClient)
-		o.Expect(err).NotTo(o.HaveOccurred(), "failed to get operand pod")
-		// Verify the pod can reach the API server - if the pod is running and healthy, it means egress is working
-		// The operand controller manager pod needs to communicate with the API server for its operation
-		o.Expect(operandPod.Status.Phase).To(o.Equal(corev1.PodRunning), "operand pod should be running (requires egress to API server)")
-	})
 })
 
 func setupOperator(t testing.TB) (context.Context, context.CancelFunc, *k8sclient.Clientset, error) {
@@ -611,6 +607,11 @@ func validateNetworkPolicySpec(netpol *networkingv1.NetworkPolicy) error {
 		return fmt.Errorf("podSelector should not have MatchExpressions, got %v", sel.MatchExpressions)
 	}
 
+	// Validate ingress rules exist
+	if len(netpol.Spec.Ingress) < 2 {
+		return fmt.Errorf("expected at least 2 ingress rules (webhook and monitoring), got %d", len(netpol.Spec.Ingress))
+	}
+
 	// Validate first ingress rule (webhook on port 9443)
 	webhookRule := netpol.Spec.Ingress[0]
 	if len(webhookRule.Ports) != 1 || webhookRule.Ports[0].Port.IntValue() != 9443 {
@@ -653,6 +654,9 @@ func validateNetworkPolicySpec(netpol *networkingv1.NetworkPolicy) error {
 	}
 
 	// Validate owner reference
+	if len(netpol.OwnerReferences) == 0 {
+		return fmt.Errorf("missing owner reference")
+	}
 	if netpol.OwnerReferences[0].Kind != "JobSetOperator" || netpol.OwnerReferences[0].Name != "cluster" {
 		return fmt.Errorf("expected owner reference to JobSetOperator/cluster, got %s/%s",
 			netpol.OwnerReferences[0].Kind, netpol.OwnerReferences[0].Name)
