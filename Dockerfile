@@ -4,7 +4,7 @@ COPY . .
 
 RUN make build --warn-undefined-variables
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:1d7c5517a4a1a8e2688620b39ee980e82505ca1ab7ae5541b5463120ae9b3897
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest@sha256:f26ef64172ea61f5ac5ba4be8c5c738bf8760b22b3e5148ce7b40f7308ab32db
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/jobset-operator /usr/bin/
 RUN mkdir /licenses
 COPY --from=builder /go/src/github.com/openshift/jobset-operator/LICENSE /licenses/.
